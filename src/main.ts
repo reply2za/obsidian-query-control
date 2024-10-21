@@ -42,6 +42,7 @@ import { translate } from "./utils";
 //         - SearchResultItemMatch
 
 const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
+const IS_DEBUG = false;
 
 const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
@@ -57,24 +58,31 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   isSearchPatched: boolean;
 
   async onload() {
+    if (IS_DEBUG) console.log('EmbeddedQueryControlPlugin: onload');
     await this.loadSettings();
+    if (IS_DEBUG) console.log('Settings loaded');
     let plugin = this;
     this.registerSettingsTab();
+    if (IS_DEBUG) console.log('Settings tab registered');
     this.register(
-      around(this.app.viewRegistry.constructor.prototype, {
-        registerView(old: any) {
-          return function (type: string, viewCreator: ViewCreator, ...args: unknown[]) {
-            plugin.app.workspace.trigger("view-registered", type, viewCreator);
-            return old.call(this, type, viewCreator, ...args);
-          };
-        },
-      })
+        around(this.app.viewRegistry.constructor.prototype, {
+          registerView(old: any) {
+            return function (type: string, viewCreator: ViewCreator, ...args: unknown[]) {
+              if (IS_DEBUG) console.log(`registerView called with type: ${type}`);
+              plugin.app.workspace.trigger("view-registered", type, viewCreator);
+              return old.call(this, type, viewCreator, ...args);
+            };
+          },
+        })
     );
     let uninstall: () => void;
     if (!this.app.workspace.layoutReady) {
+      if (IS_DEBUG) console.log('Workspace layout not ready, setting up event listeners');
       let eventRef = this.app.workspace.on("view-registered", (type: string, viewCreator: ViewCreator) => {
+        if (IS_DEBUG) console.log(`View registered: ${type}`);
         if (type !== "search") return;
         this.app.workspace.offref(eventRef);
+        if (IS_DEBUG) console.log('Search view registered, creating leaf and patching native search');
         // @ts-ignore we need a leaf before any leafs exists in the workspace, so we create one from scratch
         let leaf = new WorkspaceLeaf(plugin.app);
         let searchView = viewCreator(leaf) as SearchView;
@@ -91,305 +99,160 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         uninstall();
       });
       let eventRef2 = this.app.workspace.on("view-registered", (type: string, viewCreator: ViewCreator) => {
+        if (IS_DEBUG) console.log(`View registered: ${type}`);
         if (type !== "backlink") return;
         this.app.workspace.offref(eventRef2);
+        if (IS_DEBUG) console.log('Backlink view registered, setting SearchHeaderDOM');
         // @ts-ignore we need a leaf before any leafs exists in the workspace, so we create one from scratch
         let leaf = new WorkspaceLeaf(plugin.app);
         let searchView = viewCreator(leaf) as SearchView;
+        if (IS_DEBUG) console.log('Before setting SearchHeaderDOM:', plugin.SearchHeaderDOM);
         plugin.SearchHeaderDOM = searchView.backlink.headerDom.constructor as typeof SearchHeaderDOM;
+        if (IS_DEBUG) console.log('After setting SearchHeaderDOM:', plugin.SearchHeaderDOM);
+
       });
     }
 
     // The only way to obtain the EmbeddedSearch class is to catch it while it's being added to a parent component
     // The following will patch Component.addChild and will remove itself once it finds and patches EmbeddedSearch
     this.register(
-      (uninstall = around(Component.prototype, {
-        addChild(old: any) {
-          return function (child: unknown, ...args: any[]) {
-            try {
-              if (
-                !plugin.isSearchPatched &&
-                child instanceof Component &&
-                child.hasOwnProperty("searchQuery") &&
-                child.hasOwnProperty("sourcePath") &&
-                child.hasOwnProperty("dom")
-              ) {
-                let EmbeddedSearch = child as EmbeddedSearchClass;
-                plugin.patchSearchView(EmbeddedSearch);
-                plugin.isSearchPatched = true;
-              }
-              if (child instanceof Component && child.hasOwnProperty("backlinkDom")) {
-                let backlinks = child as BacklinksClass;
-                backlinkDoms.set(backlinks.backlinkDom.el.closest(".backlink-pane"), child);
-                if (!plugin.isBacklinksPatched) {
-                  plugin.patchBacklinksView(backlinks);
-                  plugin.isBacklinksPatched = true;
+        (uninstall = around(Component.prototype, {
+          addChild(old: any) {
+            return function (child: unknown, ...args: any[]) {
+              if (IS_DEBUG) console.log('Component.addChild called');
+              try {
+                if (
+                    !plugin.isSearchPatched &&
+                    child instanceof Component &&
+                    child.hasOwnProperty("searchQuery") &&
+                    child.hasOwnProperty("sourcePath") &&
+                    child.hasOwnProperty("dom")
+                ) {
+                  if (IS_DEBUG) console.log('EmbeddedSearch component detected, patching');
+                  let EmbeddedSearch = child as EmbeddedSearchClass;
+                  plugin.patchSearchView(EmbeddedSearch);
+                  plugin.isSearchPatched = true;
                 }
+                if (child instanceof Component && child.hasOwnProperty("backlinkDom")) {
+                  if (IS_DEBUG) console.log('Backlinks component detected');
+                  let backlinks = child as BacklinksClass;
+                  backlinkDoms.set(backlinks.backlinkDom.el.closest(".backlink-pane"), child);
+                  if (!plugin.isBacklinksPatched) {
+                    if (IS_DEBUG) console.log('Patching Backlinks view');
+                    plugin.patchBacklinksView(backlinks);
+                    plugin.isBacklinksPatched = true;
+                  }
+                }
+              } catch (err) {
+                console.error('Error in Component.addChild around patch:', err);
               }
-            } catch (err) {
-              console.log(err);
-            }
-            const result = old.call(this, child, ...args);
-            return result;
-          };
-        },
-      }))
+              const result = old.call(this, child, ...args);
+              return result;
+            };
+          },
+        }))
     );
   }
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    if (IS_DEBUG) console.log('Settings loaded:', this.settings);
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
+    if (IS_DEBUG) console.log('Settings saved');
   }
 
   registerSettingsTab() {
     this.settingsTab = new SettingTab(this.app, this);
     this.addSettingTab(this.settingsTab);
+    if (IS_DEBUG) console.log('Settings tab registered');
   }
 
   getSearchHeader(): typeof SearchHeaderDOM {
-    let searchHeader: any = (this.app.workspace.getLeavesOfType("backlink")?.first()?.view as SearchView)?.backlink?.headerDom;
+    let backlinkTab = this.app.workspace.getLeavesOfType("backlink")?.first();
+    backlinkTab?.loadIfDeferred();
+    let searchHeader: any = backlinkTab?.view?.backlink?.headerDom;
+    if (IS_DEBUG) console.log('searchHeader:', searchHeader);
     return searchHeader?.constructor;
   }
 
-  onunload(): void {}
 
-  patchNativeSearch(searchView: SearchView) {
-    const plugin = this;
-    this.register(
-      around(searchView.constructor.prototype, {
-        onResize(old: any) {
-          return function (...args: any[]) {
-            // this works around measurement issues when the search el width
-            // goes to zero and then back to a non zero value
-            const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
-            if (this.dom.el.clientWidth === 0) {
-              _children.forEach((child: any) => {
-                child.setCollapse(true, false);
-              });
-              this.dom.hidden = true;
-            } else if (this.dom.hidden) {
-              this.dom.hidden = false;
-              // if we toggle too quickly, measurement happens before we want it to
-              setTimeout(() => {
-                _children.forEach((child: any) => {
-                  child.setCollapse(this.dom.collapseAll, false);
-                });
-              }, 100);
-            }
-            return old.call(this, ...args);
-          };
-        },
-        stopSearch(old: any) {
-          return function (...args: any[]) {
-            const result = old.call(this, ...args);
-            if (this.renderComponent) {
-              this.renderComponent.unload();
-              this.renderComponent = new Component();
-            }
-            return result;
-          };
-        },
-        addChild(old: any) {
-          return function (...args: any[]) {
-            try {
-              if (!this.patched) {
-                if (!this.renderComponent) {
-                  this.renderComponent = new Component();
-                  this.renderComponent.load();
-                }
-                this.patched = true;
-                this.dom.parent = this;
-                plugin.patchSearchResultDOM(this.dom.constructor);
-                this.setRenderMarkdown = function (value: boolean) {
-                  const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
-                  this.dom.renderMarkdown = value;
-                  _children.forEach((child: any) => {
-                    child.renderContentMatches();
-                  });
-                  this.dom.infinityScroll.invalidateAll();
-                  this.dom.childrenEl.toggleClass("cm-preview-code-block", value);
-                  this.dom.childrenEl.toggleClass("is-rendered", value);
-                  this.renderMarkdownButtonEl?.toggleClass("is-active", value);
-                };
-                this.renderMarkdownButtonEl = this.headerDom?.addNavButton("reading-glasses", "Render Markdown", () => {
-                  return this.setRenderMarkdown(!this.dom.renderMarkdown);
-                });
-
-                let allSettings = {
-                  renderMarkdown: plugin.settings.defaultRenderMarkdown,
-                };
-                if (!this.settings) this.settings = {};
-                Object.entries(allSettings).forEach(([setting, defaultValue]) => {
-                  if (!this.settings.hasOwnProperty(setting)) {
-                    this.settings[setting] = defaultValue;
-                  } else if (setting === "sort" && !sortOptions.hasOwnProperty(this.settings.sort)) {
-                    this.settings[setting] = defaultValue;
-                  }
-                });
-                this.setRenderMarkdown(this.settings.renderMarkdown);
-              } else {
-              }
-            } catch (err) {
-              console.log(err);
-            }
-            const result = old.call(this, ...args);
-            return result;
-          };
-        },
-      })
-    );
+  onunload(): void {
+    if (IS_DEBUG) console.log('EmbeddedQueryControlPlugin: onunload');
   }
 
-  patchSearchResultDOM(SearchResult: typeof SearchResultDOM) {
+  patchNativeSearch(searchView: SearchView) {
+    if (IS_DEBUG) console.log('Patching native search');
     const plugin = this;
-    let uninstall = around(SearchResult.prototype, {
-      addResult(old: any) {
-        return function (...args: any[]) {
-          uninstall();
-          const result = old.call(this, ...args);
-          let SearchResultItem = result.constructor;
-          if (!plugin.isSearchResultItemPatched) plugin.patchSearchResultItem(SearchResultItem);
-          return result;
-        };
-      },
-    });
-    this.register(uninstall);
     this.register(
-      around(SearchResult.prototype, {
-        // startLoader is called for many different use cases
-        // in this patch, we try to determine the context we were called in
-        // if we recognize a context (backlinks, embedded search, native search), we patch it
-        startLoader(old: any) {
-          return function (...args: any[]) {
-            try {
-              // are we in a backlinks view?
-              let containerEl = this.el.closest(".backlink-pane");
-              let backlinksInstance = backlinkDoms.get(containerEl);
-              if (containerEl && backlinksInstance) {
-                if (!backlinksInstance.patched) {
-                handleBacklinks(this, plugin, containerEl, backlinksInstance);
-                }
-              }
-
-              // are we in a native search view?
-              if (!this.parent?.searchParamsContainerEl?.patched && this.el?.parentElement?.getAttribute("data-type") === "search" ) {
-                this.parent.searchParamsContainerEl.patched = true;
-                new Setting(this.parent.searchParamsContainerEl).setName("Render Markdown").setClass("mod-toggle").addToggle(toggle => {
-                  toggle.setValue(plugin.settings.defaultRenderMarkdown);
-                  toggle.onChange(value => {
-                    this.renderMarkdown = value;
-                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
-                    _children.forEach((child: any) => {
-                      child.renderContentMatches();
-                    });
-                    this.infinityScroll.invalidateAll();
-                    this.childrenEl.toggleClass("cm-preview-code-block", value);
-                    this.childrenEl.toggleClass("is-rendered", value);
+        around(searchView.constructor.prototype, {
+          onResize(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('searchView.onResize called');
+              // this works around measurement issues when the search el width
+              // goes to zero and then back to a non zero value
+              const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
+              if (this.dom.el.clientWidth === 0) {
+                _children.forEach((child: any) => {
+                  child.setCollapse(true, false);
+                });
+                this.dom.hidden = true;
+              } else if (this.dom.hidden) {
+                this.dom.hidden = false;
+                // if we toggle too quickly, measurement happens before we want it to
+                setTimeout(() => {
+                  _children.forEach((child: any) => {
+                    child.setCollapse(this.dom.collapseAll, false);
                   });
-                })
+                }, 100);
               }
-
-              // are we in a embedded search view?
-              if (!this.patched && this.el.parentElement?.hasClass("internal-query") ) {
-                let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
-                if (this.el?.closest(".internal-query")) {
+              return old.call(this, ...args);
+            };
+          },
+          stopSearch(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('searchView.stopSearch called');
+              const result = old.call(this, ...args);
+              if (this.renderComponent) {
+                this.renderComponent.unload();
+                this.renderComponent = new Component();
+              }
+              return result;
+            };
+          },
+          addChild(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('searchView.addChild called');
+              try {
+                if (!this.patched) {
+                  if (IS_DEBUG) console.log('Patching searchView');
+                  if (!this.renderComponent) {
+                    this.renderComponent = new Component();
+                    this.renderComponent.load();
+                  }
                   this.patched = true;
-                  let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
-                  this.setExtraContext = function (value: boolean) {
-                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
-                    this.extraContext = value;
-                    this.extraContextButtonEl.toggleClass("is-active", value);
-                    _children.forEach((child: any) => {
-                      child.setExtraContext(value);
-                    });
-                    this.infinityScroll.invalidateAll();
-                  };
-                  this.setTitleDisplay = function (value: boolean) {
-                    this.showTitle = value;
-                    this.showTitleButtonEl.toggleClass("is-active", value);
-                    defaultHeaderEl.toggleClass("is-hidden", value);
-                  };
-                  this.setResultsDisplay = function (value: boolean) {
-                    this.showResults = value;
-                    this.showResultsButtonEl.toggleClass("is-active", value);
-                    this.el.toggleClass("is-hidden", value);
-                  };
+                  this.dom.parent = this;
+                  plugin.patchSearchResultDOM(this.dom.constructor);
                   this.setRenderMarkdown = function (value: boolean) {
-                    this.renderMarkdown = value;
-                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                    if (IS_DEBUG) console.log('Setting renderMarkdown to', value);
+                    const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
+                    this.dom.renderMarkdown = value;
                     _children.forEach((child: any) => {
                       child.renderContentMatches();
                     });
-                    this.infinityScroll.invalidateAll();
-                    this.childrenEl.toggleClass("cm-preview-code-block", value);
-                    this.childrenEl.toggleClass("is-rendered", value);
-                    this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                    this.dom.infinityScroll.invalidateAll();
+                    this.dom.childrenEl.toggleClass("cm-preview-code-block", value);
+                    this.dom.childrenEl.toggleClass("is-rendered", value);
+                    this.renderMarkdownButtonEl?.toggleClass("is-active", value);
                   };
-                  this.setCollapseAll = function (value: boolean) {
-                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
-                    this.collapseAllButtonEl.toggleClass("is-active", value);
-                    this.collapseAll = value;
-                    _children.forEach((child: any) => {
-                      child.setCollapse(value, false);
-                    });
-                    this.infinityScroll.invalidateAll();
-                  };
-                  this.setSortOrder = (sortType: string) => {
-                    this.sortOrder = sortType;
-                    this.changed();
-                    this.infinityScroll.invalidateAll();
-                  };
-                  this.onCopyResultsClick = (event: MouseEvent) => {
-                    event.preventDefault();
-                    new plugin.SearchResultsExport(this.app, this).open();
-                  };
+                  this.renderMarkdownButtonEl = this.headerDom?.addNavButton("reading-glasses", "Render Markdown", () => {
+                    return this.setRenderMarkdown(!this.dom.renderMarkdown);
+                  });
 
-                  let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
-                  defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
-                  this.collapseAllButtonEl = headerDom.addNavButton(
-                    "bullet-list",
-                    translate("plugins.search.label-collapse-results"),
-                    () => {
-                      return this.setCollapseAll(!this.collapseAll);
-                    }
-                  );
-                  this.extraContextButtonEl = headerDom.addNavButton(
-                    "expand-vertically",
-                    translate("plugins.search.label-more-context"),
-                    () => {
-                      return this.setExtraContext(!this.extraContext);
-                    }
-                  );
-                  headerDom.addSortButton(
-                    (sortType: string) => {
-                      return this.setSortOrder(sortType);
-                    },
-                    () => {
-                      return this.sortOrder;
-                    }
-                  );
-                  this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
-                    return this.setTitleDisplay(!this.showTitle);
-                  });
-                  this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
-                    return this.setResultsDisplay(!this.showResults);
-                  });
-                  this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
-                    return this.setRenderMarkdown(!this.renderMarkdown);
-                  });
-                  headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
                   let allSettings = {
-                    title: plugin.settings.defaultHideResults,
-                    collapsed: plugin.settings.defaultCollapse,
-                    context: plugin.settings.defaultShowContext,
-                    hideTitle: plugin.settings.defaultHideTitle,
-                    hideResults: plugin.settings.defaultHideResults,
                     renderMarkdown: plugin.settings.defaultRenderMarkdown,
-                    sort: plugin.settings.defaultSortOrder,
                   };
                   if (!this.settings) this.settings = {};
                   Object.entries(allSettings).forEach(([setting, defaultValue]) => {
@@ -399,40 +262,247 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       this.settings[setting] = defaultValue;
                     }
                   });
-                  this.setExtraContext(this.settings.context);
-                  this.sortOrder = this.settings.sort;
-                  this.setCollapseAll(this.settings.collapsed);
-                  this.setTitleDisplay(this.settings.hideTitle);
                   this.setRenderMarkdown(this.settings.renderMarkdown);
-                  this.setResultsDisplay(this.settings.hideResults);
                 } else {
+                  if (IS_DEBUG) console.log('searchView already patched');
                 }
+              } catch (err) {
+                console.error('Error in searchView.addChild around patch:', err);
               }
-            } catch (err) {
-              console.log(err);
-            }
-            const result = old.call(this, ...args);
-            return result;
-          };
-        },
-      })
+              const result = old.call(this, ...args);
+              return result;
+            };
+          },
+        })
+    );
+  }
+
+  patchSearchResultDOM(SearchResult: typeof SearchResultDOM) {
+    if (IS_DEBUG) console.log('Patching SearchResultDOM');
+    const plugin = this;
+    let uninstall = around(SearchResult.prototype, {
+      addResult(old: any) {
+        return function (...args: any[]) {
+          if (IS_DEBUG) console.log('SearchResultDOM.addResult called');
+          uninstall();
+          const result = old.call(this, ...args);
+          let SearchResultItem = result.constructor;
+          if (!plugin.isSearchResultItemPatched) {
+            if (IS_DEBUG) console.log('Patching SearchResultItem');
+            plugin.patchSearchResultItem(SearchResultItem);
+          }
+          return result;
+        };
+      },
+    });
+    this.register(uninstall);
+    this.register(
+        around(SearchResult.prototype, {
+          // startLoader is called for many different use cases
+          // in this patch, we try to determine the context we were called in
+          // if we recognize a context (backlinks, embedded search, native search), we patch it
+          startLoader(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('SearchResultDOM.startLoader called');
+              try {
+                // Are we in a backlinks view?
+                let containerEl = this.el.closest(".backlink-pane");
+                let backlinksInstance = backlinkDoms.get(containerEl);
+                if (containerEl && backlinksInstance) {
+                  if (IS_DEBUG) console.log('Backlinks context detected in startLoader');
+                  if (!backlinksInstance.patched) {
+                    handleBacklinks(this, plugin, containerEl, backlinksInstance);
+                  }
+                }
+
+                // Are we in a native search view?
+                if (
+                    !this.parent?.searchParamsContainerEl?.patched &&
+                    this.el?.parentElement?.getAttribute("data-type") === "search"
+                ) {
+                  if (IS_DEBUG) console.log('Native search context detected in startLoader');
+                  this.parent.searchParamsContainerEl.patched = true;
+                  new Setting(this.parent.searchParamsContainerEl)
+                      .setName("Render Markdown")
+                      .setClass("mod-toggle")
+                      .addToggle((toggle) => {
+                        toggle.setValue(plugin.settings.defaultRenderMarkdown);
+                        toggle.onChange((value) => {
+                          if (IS_DEBUG) console.log('Render Markdown toggle changed to', value);
+                          this.renderMarkdown = value;
+                          const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                          _children.forEach((child: any) => {
+                            child.renderContentMatches();
+                          });
+                          this.infinityScroll.invalidateAll();
+                          this.childrenEl.toggleClass("cm-preview-code-block", value);
+                          this.childrenEl.toggleClass("is-rendered", value);
+                        });
+                      });
+                }
+
+                // Are we in an embedded search view?
+                if (!this.patched && this.el.parentElement?.hasClass("internal-query")) {
+                  if (IS_DEBUG) console.log('Embedded search context detected in startLoader');
+                  let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
+
+                  if (IS_DEBUG) console.log('_SearchHeaderDOM:', _SearchHeaderDOM);
+
+                  if (!_SearchHeaderDOM) {
+                    console.error('Error: _SearchHeaderDOM is undefined. Cannot create headerDom.');
+                    // Handle the error or exit the function
+                    return;
+                  }
+
+                  if (this.el?.closest(".internal-query")) {
+                    this.patched = true;
+                    let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
+                    this.setExtraContext = function (value: boolean) {
+                      if (IS_DEBUG) console.log('Setting extra context to', value);
+                      const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                      this.extraContext = value;
+                      this.extraContextButtonEl.toggleClass("is-active", value);
+                      _children.forEach((child: any) => {
+                        child.setExtraContext(value);
+                      });
+                      this.infinityScroll.invalidateAll();
+                    };
+                    this.setTitleDisplay = function (value: boolean) {
+                      if (IS_DEBUG) console.log('Setting title display to', value);
+                      this.showTitle = value;
+                      this.showTitleButtonEl.toggleClass("is-active", value);
+                      defaultHeaderEl.toggleClass("is-hidden", value);
+                    };
+                    this.setResultsDisplay = function (value: boolean) {
+                      if (IS_DEBUG) console.log('Setting results display to', value);
+                      this.showResults = value;
+                      this.showResultsButtonEl.toggleClass("is-active", value);
+                      this.el.toggleClass("is-hidden", value);
+                    };
+                    this.setRenderMarkdown = function (value: boolean) {
+                      if (IS_DEBUG) console.log('Setting renderMarkdown to', value);
+                      this.renderMarkdown = value;
+                      const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                      _children.forEach((child: any) => {
+                        child.renderContentMatches();
+                      });
+                      this.infinityScroll.invalidateAll();
+                      this.childrenEl.toggleClass("cm-preview-code-block", value);
+                      this.childrenEl.toggleClass("is-rendered", value);
+                      this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                    };
+                    this.setCollapseAll = function (value: boolean) {
+                      if (IS_DEBUG) console.log('Setting collapseAll to', value);
+                      const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                      this.collapseAllButtonEl.toggleClass("is-active", value);
+                      this.collapseAll = value;
+                      _children.forEach((child: any) => {
+                        child.setCollapse(value, false);
+                      });
+                      this.infinityScroll.invalidateAll();
+                    };
+                    this.setSortOrder = (sortType: string) => {
+                      if (IS_DEBUG) console.log('Setting sortOrder to', sortType);
+                      this.sortOrder = sortType;
+                      this.changed();
+                      this.infinityScroll.invalidateAll();
+                    };
+                    this.onCopyResultsClick = (event: MouseEvent) => {
+                      if (IS_DEBUG) console.log('Copy results clicked');
+                      event.preventDefault();
+                      new plugin.SearchResultsExport(this.app, this).open();
+                    };
+
+                    let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
+                    defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
+                    this.collapseAllButtonEl = headerDom.addNavButton(
+                        "bullet-list",
+                        translate("plugins.search.label-collapse-results"),
+                        () => {
+                          return this.setCollapseAll(!this.collapseAll);
+                        }
+                    );
+                    this.extraContextButtonEl = headerDom.addNavButton(
+                        "expand-vertically",
+                        translate("plugins.search.label-more-context"),
+                        () => {
+                          return this.setExtraContext(!this.extraContext);
+                        }
+                    );
+                    headerDom.addSortButton(
+                        (sortType: string) => {
+                          return this.setSortOrder(sortType);
+                        },
+                        () => {
+                          return this.sortOrder;
+                        }
+                    );
+                    this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
+                      return this.setTitleDisplay(!this.showTitle);
+                    });
+                    this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
+                      return this.setResultsDisplay(!this.showResults);
+                    });
+                    this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
+                      return this.setRenderMarkdown(!this.renderMarkdown);
+                    });
+                    headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
+                    let allSettings = {
+                      title: plugin.settings.defaultHideResults,
+                      collapsed: plugin.settings.defaultCollapse,
+                      context: plugin.settings.defaultShowContext,
+                      hideTitle: plugin.settings.defaultHideTitle,
+                      hideResults: plugin.settings.defaultHideResults,
+                      renderMarkdown: plugin.settings.defaultRenderMarkdown,
+                      sort: plugin.settings.defaultSortOrder,
+                    };
+                    if (!this.settings) this.settings = {};
+                    Object.entries(allSettings).forEach(([setting, defaultValue]) => {
+                      if (!this.settings.hasOwnProperty(setting)) {
+                        this.settings[setting] = defaultValue;
+                      } else if (setting === "sort" && !sortOptions.hasOwnProperty(this.settings.sort)) {
+                        this.settings[setting] = defaultValue;
+                      }
+                    });
+                    this.setExtraContext(this.settings.context);
+                    this.sortOrder = this.settings.sort;
+                    this.setCollapseAll(this.settings.collapsed);
+                    this.setTitleDisplay(this.settings.hideTitle);
+                    this.setRenderMarkdown(this.settings.renderMarkdown);
+                    this.setResultsDisplay(this.settings.hideResults);
+                  } else {
+                    if (IS_DEBUG) console.log('Embedded search already patched');
+                  }
+                }
+              } catch (err) {
+                console.error('Error in SearchResultDOM.startLoader around patch:', err);
+              }
+              const result = old.call(this, ...args);
+              return result;
+            };
+          }
+          ,
+        })
     );
   }
 
   patchSearchResultItem(SearchResultItemClass: typeof SearchResultItem) {
+    if (IS_DEBUG) console.log('Patching SearchResultItem');
     this.isSearchResultItemPatched = true;
     const plugin = this;
     let uninstall = around(SearchResultItemClass.prototype, {
       onResultClick(old: any) {
         return function (event: MouseEvent, e: any, ...args: any[]) {
+          if (IS_DEBUG) console.log('SearchResultItem.onResultClick called');
           if (
-            // TODO: Improve this exclusion list which allows for clicking
-            //       on elements without navigating to the match result
-            event.target instanceof HTMLElement &&
-            (event.target.hasClass("internal-link") ||
-              event.target.hasClass("task-list-item-checkbox") ||
-              event.target.hasClass("admonition-title-content"))
+              // TODO: Improve this exclusion list which allows for clicking
+              //       on elements without navigating to the match result
+              event.target instanceof HTMLElement &&
+              (event.target.hasClass("internal-link") ||
+                  event.target.hasClass("task-list-item-checkbox") ||
+                  event.target.hasClass("admonition-title-content"))
           ) {
+            // Do nothing
           } else {
             return old.call(this, event, e, ...args);
           }
@@ -440,10 +510,12 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
       },
       renderContentMatches(old: any) {
         return function (...args: any[]) {
+          if (IS_DEBUG) console.log('SearchResultItem.renderContentMatches called');
           // TODO: Move this to its own around registration and uninstall on patch
           const result = old.call(this, ...args);
           const _children = isFifteenPlus ? this.vChildren?._children : this.children;
           if (!plugin.isSearchResultItemMatchPatched && _children.length) {
+            if (IS_DEBUG) console.log('Patching SearchResultItemMatch');
             let SearchResultItemMatch = _children.first().constructor;
             plugin.patchSearchResultItemMatch(SearchResultItemMatch);
           }
@@ -455,156 +527,171 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   }
 
   patchSearchResultItemMatch(SearchResultItemMatch: any) {
+    if (IS_DEBUG) console.log('Patching SearchResultItemMatch');
     this.isSearchResultItemMatchPatched = true;
     const plugin = this;
     plugin.register(
-      around(SearchResultItemMatch.prototype, {
-        render(old: any) {
-          return function (...args: any[]) {
-            // NOTE: if we don't mangle ```query blocks, we could end up with infinite query recursion
-            let _parent = isFifteenPlus ? this.parentDom : this.parent;
-            let content = _parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
-            let leadingSpaces = content.match(/^\s+/g)?.first();
-            if (leadingSpaces) {
-              content = content.replace(new RegExp(`^${leadingSpaces}`, "gm"), "");
-            }
-            let parentComponent = _parent.parent.parent;
-            if (parentComponent && _parent.parent.renderMarkdown) {
-              let component = parentComponent?.renderComponent;
-              this.el.empty();
-              let renderer = new SearchMarkdownRenderer(plugin.app, this.el, this);
-              renderer.onRenderComplete = () => {
-                // TODO: See if we can improve measurement
-                // It exists because the markdown renderer is rendering async
-                // and the measurement processes are happening before the content has been rendered
-                _parent?.parent?.infinityScroll.measure(_parent, this);
-              };
-              component.addChild(renderer);
-              renderer.renderer.set(content);
-            } else {
-              return old.call(this, ...args);
-            }
-          };
-        },
-      })
+        around(SearchResultItemMatch.prototype, {
+          render(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('SearchResultItemMatch.render called');
+              // NOTE: if we don't mangle ```query blocks, we could end up with infinite query recursion
+              let _parent = isFifteenPlus ? this.parentDom : this.parent;
+              let content = _parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
+              let leadingSpaces = content.match(/^\s+/g)?.first();
+              if (leadingSpaces) {
+                content = content.replace(new RegExp(`^${leadingSpaces}`, "gm"), "");
+              }
+              let parentComponent = _parent.parent.parent;
+              if (parentComponent && _parent.parent.renderMarkdown) {
+                let component = parentComponent?.renderComponent;
+                this.el.empty();
+                let renderer = new SearchMarkdownRenderer(plugin.app, this.el, this);
+                renderer.onRenderComplete = () => {
+                  // TODO: See if we can improve measurement
+                  // It exists because the markdown renderer is rendering async
+                  // and the measurement processes are happening before the content has been rendered
+                  _parent?.parent?.infinityScroll.measure(_parent, this);
+                };
+                component.addChild(renderer);
+                renderer.renderer.set(content);
+              } else {
+                return old.call(this, ...args);
+              }
+            };
+          },
+        })
     );
   }
 
   patchSearchView(embeddedSearch: EmbeddedSearchClass) {
+    if (IS_DEBUG) console.log('Patching EmbeddedSearch view');
     const plugin = this;
     const EmbeddedSearch = embeddedSearch.constructor as typeof EmbeddedSearchClass;
     const SearchResult = embeddedSearch.dom.constructor as typeof SearchResultDOM;
 
     this.register(
-      around(EmbeddedSearch.prototype, {
-        onunload(old: any) {
-          return function (...args: any[]) {
-            if (this.renderComponent) {
-              this.renderComponent.unload();
-              this.dom = null;
-              this.queue = null;
-              this.renderComponent = null;
-              this._children = null;
-              this.containerEl = null;
-            }
+        around(EmbeddedSearch.prototype, {
+          onunload(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('EmbeddedSearch.onunload called');
+              if (this.renderComponent) {
+                this.renderComponent.unload();
+                this.dom = null;
+                this.queue = null;
+                this.renderComponent = null;
+                this._children = null;
+                this.containerEl = null;
+              }
 
-            const result = old.call(this, ...args);
-            return result;
-          };
-        },
-        onload(old: any) {
-          return function (...args: any[]) {
-            try {
-              if (!this.renderComponent) {
-                this.renderComponent = new Component();
-                this.renderComponent.load();
-              }
-              this.dom.parent = this;
-              let defaultHeaderEl = this.containerEl.parentElement.querySelector(
-                ".internal-query-header"
-              ) as HTMLElement;
-              let matches = this.query.matchAll(
-                /^(?<key>collapsed|context|hideTitle|renderMarkdown|hideResults|sort|title):\s*(?<value>.+?)$/gm
-              );
-              let settings: Record<string, string> = {};
-              for (let match of matches) {
-                let value = match.groups.value.toLowerCase();
-                if (value === "true" || value === "false") {
-                  match.groups.value = value === "true";
+              const result = old.call(this, ...args);
+              return result;
+            };
+          },
+          onload(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('EmbeddedSearch.onload called');
+              try {
+                if (!this.renderComponent) {
+                  this.renderComponent = new Component();
+                  this.renderComponent.load();
                 }
-                settings[match.groups.key] = match.groups.value;
+                this.dom.parent = this;
+                let defaultHeaderEl = this.containerEl.parentElement.querySelector(
+                    ".internal-query-header"
+                ) as HTMLElement;
+                let matches = this.query.matchAll(
+                    /^(?<key>collapsed|context|hideTitle|renderMarkdown|hideResults|sort|title):\s*(?<value>.+?)$/gm
+                );
+                let settings: Record<string, string> = {};
+                for (let match of matches) {
+                  let value = match.groups.value.toLowerCase();
+                  if (value === "true" || value === "false") {
+                    match.groups.value = value === "true";
+                  }
+                  settings[match.groups.key] = match.groups.value;
+                }
+                this.query = this.query
+                    .replace(/^((collapsed|context|hideTitle|renderMarkdown|hideResults|sort|title):.+?)$/gm, "")
+                    .trim();
+                defaultHeaderEl.setText(settings.title || this.query);
+                this.dom.settings = settings;
+              } catch (err) {
+                console.error('Error in EmbeddedSearch.onload:', err);
               }
-              this.query = this.query
-                .replace(/^((collapsed|context|hideTitle|renderMarkdown|hideResults|sort|title):.+?)$/gm, "")
-                .trim();
-              defaultHeaderEl.setText(settings.title || this.query);
-              this.dom.settings = settings;
-            } catch {}
-            const result = old.call(this, ...args);
-            return result;
-          };
-        },
-      })
+              const result = old.call(this, ...args);
+              return result;
+            };
+          },
+        })
     );
     this.patchSearchResultDOM(SearchResult);
   }
 
   patchBacklinksView(backlinks: BacklinksClass) {
+    if (IS_DEBUG) console.log('Patching Backlinks view');
     const plugin = this;
     const Backlink = backlinks.constructor as typeof EmbeddedSearchClass;
     const BacklinkDOM = backlinks.backlinkDom.constructor as typeof BacklinkDOMClass;
 
     this.register(
-      around(Backlink.prototype, {
-        onunload(old: any) {
-          return function (...args: any[]) {
-            if (this.renderComponent) {
-              this.renderComponent.unload();
-              this.dom = null;
-              this.queue = null;
-              this.renderComponent = null;
-              this._children = null;
-              this.containerEl = null;
-            }
-            const result = old.call(this, ...args);
-            return result;
-          };
-        },
-        onload(old: any) {
-          return function (...args: any[]) {
-            try {
-              if (!this.renderComponent) {
-                this.renderComponent = new Component();
-                this.renderComponent.load();
+        around(Backlink.prototype, {
+          onunload(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('Backlink.onunload called');
+              if (this.renderComponent) {
+                this.renderComponent.unload();
+                this.dom = null;
+                this.queue = null;
+                this.renderComponent = null;
+                this._children = null;
+                this.containerEl = null;
               }
-              this.backlinkDom.parent = this;
-              this.unlinkedDom.parent = this;
+              const result = old.call(this, ...args);
+              return result;
+            };
+          },
+          onload(old: any) {
+            return function (...args: any[]) {
+              if (IS_DEBUG) console.log('Backlink.onload called');
+              try {
+                if (!this.renderComponent) {
+                  this.renderComponent = new Component();
+                  this.renderComponent.load();
+                }
+                this.backlinkDom.parent = this;
+                this.unlinkedDom.parent = this;
 
-              let settings: Record<string, string> = {};
+                let settings: Record<string, string> = {};
 
-              this.dom.settings = settings;
-            } catch {}
-            const result = old.call(this, ...args);
-            return result;
-          };
-        },
-      })
+                this.dom.settings = settings;
+              } catch (err) {
+                console.error('Error in Backlink.onload:', err);
+              }
+              const result = old.call(this, ...args);
+              return result;
+            };
+          },
+        })
     );
     this.patchSearchResultDOM(BacklinkDOM);
   }
 }
 
 function handleBacklinks(
-  instance: BacklinkDOMClass,
-  plugin: EmbeddedQueryControlPlugin,
-  containerEl: HTMLElement,
-  backlinksInstance: BacklinksClass
+    instance: BacklinkDOMClass,
+    plugin: EmbeddedQueryControlPlugin,
+    containerEl: HTMLElement,
+    backlinksInstance: BacklinksClass
 ) {
+  if (IS_DEBUG) console.log('Handling backlinks');
   if (backlinksInstance) {
+    if (IS_DEBUG) console.log('Backlinks instance found, patching');
     backlinksInstance.patched = true;
     let defaultHeaderEl =
-      containerEl.querySelector(".internal-query-header") || containerEl.querySelector(".nav-header");
+        containerEl.querySelector(".internal-query-header") || containerEl.querySelector(".nav-header");
     instance.setRenderMarkdown = function (value: boolean) {
+      if (IS_DEBUG) console.log('Setting renderMarkdown in backlinks to', value);
       const doms = [backlinksInstance.backlinkDom, backlinksInstance.unlinkedDom];
       doms.forEach(dom => {
         dom.renderMarkdown = value;
@@ -619,15 +706,16 @@ function handleBacklinks(
       this.renderMarkdownButtonEl.toggleClass("is-active", value);
     };
     instance.onCopyResultsClick = (event: MouseEvent) => {
+      if (IS_DEBUG) console.log('Copy results clicked in backlinks');
       event.preventDefault();
       new plugin.SearchResultsExport(instance.app, instance).open();
     };
     instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
-      "reading-glasses",
-      "Render Markdown",
-      () => {
-        return instance.setRenderMarkdown(!instance.renderMarkdown);
-      }
+        "reading-glasses",
+        "Render Markdown",
+        () => {
+          return instance.setRenderMarkdown(!instance.renderMarkdown);
+        }
     );
     backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
     let allSettings = {
@@ -652,5 +740,6 @@ function handleBacklinks(
     backlinksInstance.setCollapseAll(instance.settings.collapsed);
     instance.setRenderMarkdown(instance.settings.renderMarkdown);
   } else {
+    if (IS_DEBUG) console.log('No backlinks instance found');
   }
 }
