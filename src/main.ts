@@ -13,7 +13,7 @@ import {
   requireApiVersion,
   BacklinksClass,
   BacklinkDOMClass,
-  Setting
+  Setting, Notice
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -41,8 +41,7 @@ import { translate } from "./utils";
 //       - SearchResultItem
 //         - SearchResultItemMatch
 
-const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
-const IS_DEBUG = false;
+const IS_DEBUG = true;
 
 const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
@@ -193,7 +192,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
               if (IS_DEBUG) console.log('searchView.onResize called');
               // this works around measurement issues when the search el width
               // goes to zero and then back to a non zero value
-              const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
+              const _children = this.dom.vChildren?._children;
               if (this.dom.el.clientWidth === 0) {
                 _children.forEach((child: any) => {
                   child.setCollapse(true, false);
@@ -237,7 +236,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   plugin.patchSearchResultDOM(this.dom.constructor);
                   this.setRenderMarkdown = function (value: boolean) {
                     if (IS_DEBUG) console.log('Setting renderMarkdown to', value);
-                    const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
+                    const _children = this.dom.vChildren?._children;
                     this.dom.renderMarkdown = value;
                     _children.forEach((child: any) => {
                       child.renderContentMatches();
@@ -330,7 +329,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                         toggle.onChange((value) => {
                           if (IS_DEBUG) console.log('Render Markdown toggle changed to', value);
                           this.renderMarkdown = value;
-                          const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                          const _children = this.vChildren?._children;
                           _children.forEach((child: any) => {
                             child.renderContentMatches();
                           });
@@ -359,7 +358,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
                     this.setExtraContext = function (value: boolean) {
                       if (IS_DEBUG) console.log('Setting extra context to', value);
-                      const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                      const _children = this.vChildren?._children;
                       this.extraContext = value;
                       this.extraContextButtonEl.toggleClass("is-active", value);
                       _children.forEach((child: any) => {
@@ -382,7 +381,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.setRenderMarkdown = function (value: boolean) {
                       if (IS_DEBUG) console.log('Setting renderMarkdown to', value);
                       this.renderMarkdown = value;
-                      const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                      const _children = this.vChildren?._children;
                       _children.forEach((child: any) => {
                         child.renderContentMatches();
                       });
@@ -393,7 +392,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     };
                     this.setCollapseAll = function (value: boolean) {
                       if (IS_DEBUG) console.log('Setting collapseAll to', value);
-                      const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                      const _children = this.vChildren?._children;
                       this.collapseAllButtonEl.toggleClass("is-active", value);
                       this.collapseAll = value;
                       _children.forEach((child: any) => {
@@ -407,11 +406,34 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       this.changed();
                       this.infinityScroll.invalidateAll();
                     };
-                    this.onCopyResultsClick = (event: MouseEvent) => {
-                      if (IS_DEBUG) console.log('Copy results clicked');
+                    this.onCopyResultsClick = async (event: MouseEvent) => {
                       event.preventDefault();
-                      new plugin.SearchResultsExport(this.app, this).open();
+
+                      // Collect the search results
+                      let results = [];
+                      const _children = this.vChildren?._children;
+
+                      for (let item of _children) {
+                        let filePath = item.file.path;
+                        let matchesText = '';
+                        const matches = item.vChildren?._children;
+                        for (let match of matches) {
+                          let content = match.parent.content.substring(match.start, match.end);
+                          matchesText += content + '\n';
+                        }
+                        results.push(`## ${filePath}\n${matchesText}`);
+                      }
+
+                      let resultsText = results.join('\n');
+                      try {
+                        await navigator.clipboard.writeText(resultsText);
+                        new Notice('Search results copied to clipboard.');
+                      } catch (err) {
+                        console.error('Failed to copy search results:', err);
+                        new Notice('Failed to copy search results.');
+                      }
                     };
+
 
                     let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
                     defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
@@ -513,7 +535,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           if (IS_DEBUG) console.log('SearchResultItem.renderContentMatches called');
           // TODO: Move this to its own around registration and uninstall on patch
           const result = old.call(this, ...args);
-          const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+          const _children = this.vChildren?._children;
           if (!plugin.isSearchResultItemMatchPatched && _children.length) {
             if (IS_DEBUG) console.log('Patching SearchResultItemMatch');
             let SearchResultItemMatch = _children.first().constructor;
@@ -536,7 +558,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
             return function (...args: any[]) {
               if (IS_DEBUG) console.log('SearchResultItemMatch.render called');
               // NOTE: if we don't mangle ```query blocks, we could end up with infinite query recursion
-              let _parent = isFifteenPlus ? this.parentDom : this.parent;
+              let _parent = this.parentDom;
               let content = _parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
               let leadingSpaces = content.match(/^\s+/g)?.first();
               if (leadingSpaces) {
@@ -684,18 +706,13 @@ function handleBacklinks(
     containerEl: HTMLElement,
     backlinksInstance: BacklinksClass
 ) {
-  if (IS_DEBUG) console.log('Handling backlinks');
   if (backlinksInstance) {
-    if (IS_DEBUG) console.log('Backlinks instance found, patching');
     backlinksInstance.patched = true;
-    let defaultHeaderEl =
-        containerEl.querySelector(".internal-query-header") || containerEl.querySelector(".nav-header");
     instance.setRenderMarkdown = function (value: boolean) {
-      if (IS_DEBUG) console.log('Setting renderMarkdown in backlinks to', value);
       const doms = [backlinksInstance.backlinkDom, backlinksInstance.unlinkedDom];
       doms.forEach(dom => {
         dom.renderMarkdown = value;
-        const _children = isFifteenPlus ? dom.vChildren?._children : dom.children;
+        const _children = dom.vChildren?._children;
         _children.forEach((child: any) => {
           child.renderContentMatches();
         });
@@ -705,11 +722,40 @@ function handleBacklinks(
       });
       this.renderMarkdownButtonEl.toggleClass("is-active", value);
     };
-    instance.onCopyResultsClick = (event: MouseEvent) => {
-      if (IS_DEBUG) console.log('Copy results clicked in backlinks');
+
+    // Updated onCopyResultsClick method
+    instance.onCopyResultsClick = async (event: MouseEvent) => {
       event.preventDefault();
-      new plugin.SearchResultsExport(instance.app, instance).open();
+
+      // Collect the search results
+      let results = [];
+      const doms = [backlinksInstance.backlinkDom, backlinksInstance.unlinkedDom];
+
+      for (let dom of doms) {
+        const _children = dom.vChildren?._children;
+
+        for (let item of _children) {
+          let filePath = item.file.path;
+          let matchesText = '';
+          const matches = item.vChildren?._children;
+          for (let match of matches) {
+            let content = match.parent.content.substring(match.start, match.end);
+            matchesText += content + '\n';
+          }
+          results.push(`## ${filePath}\n${matchesText}`);
+        }
+      }
+
+      let resultsText = results.join('\n');
+      try {
+        await navigator.clipboard.writeText(resultsText);
+      } catch (err) {
+        console.error('Failed to copy backlinks:', err);
+        new Notice('Failed to copy backlinks.');
+      }
     };
+
+    // Ensure the button is bound to the updated method
     instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
         "reading-glasses",
         "Render Markdown",
@@ -718,6 +764,7 @@ function handleBacklinks(
         }
     );
     backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
+
     let allSettings = {
       title: plugin.settings.defaultHideResults,
       collapsed: plugin.settings.defaultCollapse,
@@ -740,6 +787,7 @@ function handleBacklinks(
     backlinksInstance.setCollapseAll(instance.settings.collapsed);
     instance.setRenderMarkdown(instance.settings.renderMarkdown);
   } else {
-    if (IS_DEBUG) console.log('No backlinks instance found');
+    console.log('No backlinks instance found');
   }
 }
+
