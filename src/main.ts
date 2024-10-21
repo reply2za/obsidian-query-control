@@ -13,11 +13,12 @@ import {
   requireApiVersion,
   BacklinksClass,
   BacklinkDOMClass,
-  Setting, Notice
+  Setting, Notice, Menu
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
 import { translate } from "./utils";
+import {getNextSortOption} from "./sort";
 
 // Live Preview creates an embedded query block
 // LP calls addChild with an instance of the EmbeddedSearch class
@@ -451,12 +452,14 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                           return this.setExtraContext(!this.extraContext);
                         }
                     );
-                    headerDom.addSortButton(
-                        (sortType: string) => {
-                          return this.setSortOrder(sortType);
-                        },
+                    console.log('Adding sort button using addNavButton');
+                    this.showSortButtonEl = headerDom.addNavButton(
+                        'arrow-up-narrow-wide',
+                        'Sort',
                         () => {
-                          return this.sortOrder;
+                          let toolTip =`Sort (${this.sortOrder})`;
+                          this.showSortButtonEl.setAttribute('aria-label', toolTip);
+                          return this.setSortOrder(getNextSortOption(this.sortOrder));
                         }
                     );
                     this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {

@@ -124,8 +124,12 @@ declare module "obsidian" {
   class SearchHeaderDOM {
     constructor(app: App, el: HTMLElement);
     navHeaderEl: HTMLElement;
-    addNavButton(icon: string, label: string, onClick: () => any, className?: string): HTMLElement;
-    addSortButton(onClick: (sortType: string) => any, callback: () => any): void;
+    addNavButton(
+        icon: string,
+        label: string,
+        onClick: (evt: MouseEvent) => any,
+        className?: string
+    ): HTMLElement;
   }
   class EmbeddedSearchClass extends MarkdownRenderChild {
     dom?: SearchResult;

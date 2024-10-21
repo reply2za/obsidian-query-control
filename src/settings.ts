@@ -29,6 +29,8 @@ export const sortOptions = {
   byCreatedTimeReverse: translate("plugins.file-explorer.label-sort-created-old-to-new"),
 };
 
+
+
 export class SettingTab extends PluginSettingTab {
   plugin: EmbeddedQueryControlPlugin;
 
