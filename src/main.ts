@@ -98,8 +98,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         let searchView = viewCreator(leaf) as SearchView;
         plugin.SearchHeaderDOM = searchView.backlink.headerDom.constructor as typeof SearchHeaderDOM;
       });
-    } else {
-      this.getSearchExport();
     }
 
     // The only way to obtain the EmbeddedSearch class is to catch it while it's being added to a parent component
@@ -155,21 +153,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   getSearchHeader(): typeof SearchHeaderDOM {
     let searchHeader: any = (this.app.workspace.getLeavesOfType("backlink")?.first()?.view as SearchView)?.backlink?.headerDom;
     return searchHeader?.constructor;
-  }
-
-  getSearchExport() {
-    const plugin = this;
-    let searchView: any = this.app.workspace.getLeavesOfType("search")?.first()?.view;
-    let uninstall = around(Modal.prototype, {
-      open(old: any) {
-        return function (...args: any[]) {
-          plugin.SearchResultsExport = this.constructor;
-          return;
-        };
-      },
-    });
-    searchView?.onCopyResultsClick(new MouseEvent(null));
-    uninstall();
   }
 
   onunload(): void {}
@@ -291,7 +274,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 handleBacklinks(this, plugin, containerEl, backlinksInstance);
                 }
               }
-              
+
               // are we in a native search view?
               if (!this.parent?.searchParamsContainerEl?.patched && this.el?.parentElement?.getAttribute("data-type") === "search" ) {
                 this.parent.searchParamsContainerEl.patched = true;
@@ -309,7 +292,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   });
                 })
               }
-              
+
               // are we in a embedded search view?
               if (!this.patched && this.el.parentElement?.hasClass("internal-query") ) {
                 let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
@@ -364,7 +347,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     event.preventDefault();
                     new plugin.SearchResultsExport(this.app, this).open();
                   };
-                  
+
                   let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
                   defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
                   this.collapseAllButtonEl = headerDom.addNavButton(
