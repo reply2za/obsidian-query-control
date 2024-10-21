@@ -91,7 +91,7 @@ declare module "obsidian" {
     onResultClick(event: MouseEvent, e?: any): void;
     info: ItemInfo;
     collapsible: boolean;
-    collpased: boolean;
+    collapsed: boolean;
     extraContext: boolean;
     showTitle: boolean;
     parent: SearchResultDOM;
