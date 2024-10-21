@@ -1,6 +1,6 @@
 {
   "name": "obsidian-query-control",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "description": "An experimental Obsidian plugin that adds additional control to queries",
   "main": "main.js",
   "scripts": {
