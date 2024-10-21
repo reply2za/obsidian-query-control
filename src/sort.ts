@@ -30,7 +30,7 @@ export function createSortTooltip(options: string[], buttonElement: any, setSort
     tooltip.style.color = '#fff';
     tooltip.style.borderRadius = '4px';
     tooltip.style.padding = '5px';
-    tooltip.style.zIndex = 1000;
+    tooltip.style.zIndex = '1000';
     tooltip.style.top = `${buttonElement.getBoundingClientRect().bottom + window.scrollY}px`;
     tooltip.style.left = `${buttonElement.getBoundingClientRect().left}px`;
 
@@ -62,10 +62,13 @@ export function createSortTooltip(options: string[], buttonElement: any, setSort
     document.body.appendChild(tooltip);
 
     // Close the tooltip when clicking outside
-    document.addEventListener('click', (event) => {
+    const outsideClickListener = (event) => {
         if (!tooltip.contains(event.target) && !buttonElement.contains(event.target)) {
             tooltip.remove();
+            document.removeEventListener('click', outsideClickListener); // Remove the listener after it's called
         }
-    }, { once: true });
+    };
+    document.addEventListener('click', outsideClickListener);
 }
+
 
