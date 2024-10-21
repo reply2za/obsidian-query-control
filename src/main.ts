@@ -10,7 +10,6 @@ import {
   SearchView,
   ViewCreator,
   WorkspaceLeaf,
-  requireApiVersion,
   BacklinksClass,
   BacklinkDOMClass,
   Setting, Notice, Menu
@@ -42,7 +41,7 @@ import {getNextSortOption} from "./sort";
 //       - SearchResultItem
 //         - SearchResultItemMatch
 
-const IS_DEBUG = true;
+const IS_DEBUG = false;
 
 const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
