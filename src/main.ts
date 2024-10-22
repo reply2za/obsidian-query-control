@@ -717,7 +717,8 @@ function handleBacklinks(
     instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
         "reading-glasses",
         "Render Markdown",
-        () => {
+        (event: MouseEvent) => {
+          event.stopPropagation();
           return instance.setRenderMarkdown(!instance.renderMarkdown);
         }
     );
