@@ -396,21 +396,24 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.collapseAllButtonEl = headerDom.addNavButton(
                         "bullet-list",
                         translate("plugins.search.label-collapse-results"),
-                        () => {
+                        (event: MouseEvent) => {
+                          event.stopPropagation();
                           return this.setCollapseAll(!this.collapseAll);
                         }
                     );
                     this.extraContextButtonEl = headerDom.addNavButton(
                         "expand-vertically",
                         translate("plugins.search.label-more-context"),
-                        () => {
+                        (event: MouseEvent) => {
+                          event.stopPropagation();
                           return this.setExtraContext(!this.extraContext);
                         }
                     );
                     this.showSortButtonEl = headerDom.addNavButton(
                         'arrow-up-narrow-wide', // Initial icon
                         'Sort', // Tooltip
-                        () => {
+                        (event: MouseEvent) => {
+                          event.stopPropagation();
                           const validSortOptions: string[] = Object.entries(sortOptions).map(i => i[0]);
 
                           const setSortOrderCallback = (selectedOption: string) => {
@@ -426,13 +429,16 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                           createSortTooltip(validSortOptions, this.showSortButtonEl, setSortOrderCallback);
                         }
                     );
-                    this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
+                    this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", (event: MouseEvent) => {
+                      event.stopPropagation();
                       return this.setTitleDisplay(!this.showTitle);
                     });
-                    this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
+                    this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", (event: MouseEvent) => {
+                      event.stopPropagation();
                       return this.setResultsDisplay(!this.showResults);
                     });
-                    this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
+                    this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", (event: MouseEvent) => {
+                      event.stopPropagation();
                       return this.setRenderMarkdown(!this.renderMarkdown);
                     });
                     headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
@@ -676,6 +682,7 @@ function handleBacklinks(
 
     // Updated onCopyResultsClick method
     instance.onCopyResultsClick = async (event: MouseEvent) => {
+      event.stopPropagation();
       event.preventDefault();
 
       // Collect the search results
