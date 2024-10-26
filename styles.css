@@ -40,3 +40,21 @@
 .cm-preview-code-block.is-rendered .markdown-preview-view {
   height: inherit;
 }
+
+.query-control-sort-tooltip {
+  position: absolute;
+  background: #333;
+  color: #fff;
+  border-radius: 4px;
+  padding: 5px;
+  z-index: 1000;
+}
+
+.query-control-sort-option {
+  padding: 5px;
+  cursor: pointer;
+}
+
+.query-control-sort-option:hover {
+  background: #555;
+}

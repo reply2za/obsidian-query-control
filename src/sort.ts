@@ -3,7 +3,7 @@ import {SortOption} from "./obsidian";
 
 export function createSortPopup(options: SortOption[], buttonElement: any, setSortOrderCallback: (selectedOption: string) => void) {
     // Check if tooltip already exists
-    let existingTooltip = document.getElementById('sort-tooltip');
+    let existingTooltip = document.getElementById('query-control-sort-tooltip');
     if (existingTooltip) {
         existingTooltip.remove(); // Remove the existing tooltip if it's open
         return;
@@ -11,22 +11,17 @@ export function createSortPopup(options: SortOption[], buttonElement: any, setSo
 
     // Create the tooltip-like div
     const tooltip = document.createElement('div');
-    tooltip.id = 'sort-tooltip';
-    tooltip.style.position = 'absolute';
-    tooltip.style.background = '#333';
-    tooltip.style.color = '#fff';
-    tooltip.style.borderRadius = '4px';
-    tooltip.style.padding = '5px';
-    tooltip.style.zIndex = '1000';
-    tooltip.style.top = `${buttonElement.getBoundingClientRect().bottom + window.scrollY}px`;
-    tooltip.style.left = `${buttonElement.getBoundingClientRect().left}px`;
+    tooltip.classList.add('query-control-sort-tooltip');
+    const rect = buttonElement.getBoundingClientRect();
+    tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+    tooltip.style.left = `${rect.left + window.scrollX}px`;
+
 
     // Populate the tooltip with options
     options.forEach(option => {
         const optionEl = document.createElement('div');
-        optionEl.textContent = option.label; // Use the display label
-        optionEl.style.padding = '5px';
-        optionEl.style.cursor = 'pointer';
+        optionEl.classList.add('query-control-sort-option');
+        optionEl.textContent = option.label;
 
         // Add hover effect
         optionEl.addEventListener('mouseover', () => {
@@ -49,10 +44,10 @@ export function createSortPopup(options: SortOption[], buttonElement: any, setSo
     document.body.appendChild(tooltip);
 
     // Close the tooltip when clicking outside
-    const outsideClickListener = (event) => {
+    const outsideClickListener = (event: any) => {
         if (!tooltip.contains(event.target) && !buttonElement.contains(event.target)) {
             tooltip.remove();
-            document.removeEventListener('click', outsideClickListener); // Remove the listener after it's called
+            document.removeEventListener('click', outsideClickListener);
         }
     };
     document.addEventListener('click', outsideClickListener);
