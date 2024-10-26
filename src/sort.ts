@@ -1,7 +1,10 @@
 import {SortOption} from "./obsidian";
+import { App } from "obsidian";
 
 
-export function createSortPopup(options: SortOption[], buttonElement: any, setSortOrderCallback: (selectedOption: string) => void, currentSortOrder: string) {
+export function createSortPopup(options: SortOption[], buttonElement: any,
+                                setSortOrderCallback: (selectedOption: string) => void,
+                                currentSortOrder: string, app: App) {
     // Check if tooltip already exists
     let existingTooltip = document.getElementById('query-control-sort-tooltip');
     if (existingTooltip) {
@@ -42,14 +45,41 @@ export function createSortPopup(options: SortOption[], buttonElement: any, setSo
     // Append the tooltip to the body
     document.body.appendChild(tooltip);
 
-    // Close the tooltip when clicking outside
-    const outsideClickListener = (event: any) => {
-        if (!tooltip.contains(event.target) && !buttonElement.contains(event.target)) {
+
+
+    const removeEventListeners = () => {
+        document.removeEventListener('mousedown', outsideClickListener, true);
+        document.removeEventListener('touchstart', outsideClickListener, true);
+        document.removeEventListener('click', outsideClickListener, true);
+        document.removeEventListener('keydown', keydownListener, true);
+        app.workspace.off('active-leaf-change', onWorkspaceChange);
+    };
+
+    const onWorkspaceChange = () => {
+        if (tooltip.parentElement) {
             tooltip.remove();
-            document.removeEventListener('click', outsideClickListener);
+            removeEventListeners();
         }
     };
+
+
+    const outsideClickListener = (event: MouseEvent | TouchEvent) => {
+        if (!tooltip.contains(event.target as Node) && !buttonElement.contains(event.target as Node)) {
+            tooltip.remove();
+            removeEventListeners();
+        }
+    };
+
+    const keydownListener = (event: KeyboardEvent) => {
+        tooltip.remove();
+        removeEventListeners();
+    };
+
+    document.addEventListener('mousedown', outsideClickListener, true);
+    document.addEventListener('touchstart', outsideClickListener, true);
     document.addEventListener('click', outsideClickListener);
+    document.addEventListener('keydown', keydownListener, true);
+    app.workspace.on('active-leaf-change', onWorkspaceChange);
 }
 
 
