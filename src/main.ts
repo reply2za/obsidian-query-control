@@ -17,7 +17,7 @@ import {
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
 import { translate } from "./utils";
-import {createSortTooltip, getNextSortOption} from "./sort";
+import {createSortPopup} from "./sort";
 
 // Live Preview creates an embedded query block
 // LP calls addChild with an instance of the EmbeddedSearch class
@@ -426,7 +426,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                               console.error(`Invalid sort option: ${selectedOption}`);
                             }
                           };
-                          createSortTooltip(validSortOptions, this.showSortButtonEl, setSortOrderCallback);
+                          createSortPopup(validSortOptions, this.showSortButtonEl, setSortOrderCallback);
                         }
                     );
                     this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", (event: MouseEvent) => {
