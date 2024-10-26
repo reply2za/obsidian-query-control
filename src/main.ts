@@ -18,6 +18,7 @@ import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
 import { translate } from "./utils";
 import {createSortPopup} from "./sort";
+import {SortOption} from "./obsidian";
 
 // Live Preview creates an embedded query block
 // LP calls addChild with an instance of the EmbeddedSearch class
@@ -414,19 +415,22 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                         'Sort', // Tooltip
                         (event: MouseEvent) => {
                           event.stopPropagation();
-                          const validSortOptions: string[] = Object.entries(sortOptions).map(i => i[0]);
+                          const validSortOptionKeys = sortOptions.map(option => option.key);
+                          const setSortOrderCallback = (selectedOptionKey: string) => {
+                            if (validSortOptionKeys.includes(selectedOptionKey)) {
+                              this.sortOrder = selectedOptionKey;
 
-                          const setSortOrderCallback = (selectedOption: string) => {
-                            if (validSortOptions.includes(selectedOption)) {
-                              this.sortOrder = selectedOption;
-                              let toolTip = `Sort (is ${this.sortOrder})`;
+                              // Find the selected option's label
+                              const selectedOption: SortOption = sortOptions.find(option => option.key === selectedOptionKey);
+                              const toolTip = `Sort (${selectedOption.label})`;
+
                               this.showSortButtonEl.setAttribute('aria-label', toolTip);
-                              this.setSortOrder(selectedOption);
+                              this.setSortOrder(selectedOptionKey);
                             } else {
-                              console.error(`Invalid sort option: ${selectedOption}`);
+                              console.error(`Invalid sort option: ${selectedOptionKey}`);
                             }
                           };
-                          createSortPopup(validSortOptions, this.showSortButtonEl, setSortOrderCallback);
+                          createSortPopup(sortOptions, this.showSortButtonEl, setSortOrderCallback);
                         }
                     );
                     this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", (event: MouseEvent) => {

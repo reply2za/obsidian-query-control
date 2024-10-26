@@ -1,6 +1,7 @@
+import {SortOption} from "./obsidian";
 
 
-export function createSortPopup(options: string[], buttonElement: any, setSortOrderCallback: any) {
+export function createSortPopup(options: SortOption[], buttonElement: any, setSortOrderCallback: (selectedOption: string) => void) {
     // Check if tooltip already exists
     let existingTooltip = document.getElementById('sort-tooltip');
     if (existingTooltip) {
@@ -23,7 +24,7 @@ export function createSortPopup(options: string[], buttonElement: any, setSortOr
     // Populate the tooltip with options
     options.forEach(option => {
         const optionEl = document.createElement('div');
-        optionEl.textContent = `Sort ${option}`;
+        optionEl.textContent = option.label; // Use the display label
         optionEl.style.padding = '5px';
         optionEl.style.cursor = 'pointer';
 
@@ -37,7 +38,7 @@ export function createSortPopup(options: string[], buttonElement: any, setSortOr
 
         // Click event to set the sort order
         optionEl.addEventListener('click', () => {
-            setSortOrderCallback(option); // Callback function to handle sorting
+            setSortOrderCallback(option.key); // Pass the key
             tooltip.remove(); // Remove the tooltip after selection
         });
 

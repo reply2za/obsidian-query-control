@@ -239,3 +239,8 @@ declare module "obsidian" {
     childrenEl?: HTMLElement;
   }
 }
+
+interface SortOption {
+  key: string;
+  label: string;
+}

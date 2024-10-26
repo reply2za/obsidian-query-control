@@ -20,14 +20,15 @@ export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
   defaultSortOrder: "alphabetical",
 };
 // alphabetical|alphabeticalReverse|byModifiedTime|byModifiedTimeReverse|byCreatedTime|byCreatedTimeReverse
-export const sortOptions = {
-  alphabetical: translate("plugins.file-explorer.label-sort-a-to-z"),
-  alphabeticalReverse: translate("plugins.file-explorer.label-sort-z-to-a"),
-  byModifiedTime: translate("plugins.file-explorer.label-sort-new-to-old"),
-  byModifiedTimeReverse: translate("plugins.file-explorer.label-sort-old-to-new"),
-  byCreatedTime: translate("plugins.file-explorer.label-sort-created-new-to-old"),
-  byCreatedTimeReverse: translate("plugins.file-explorer.label-sort-created-old-to-new"),
-};
+export const sortOptions = [
+  { key: 'alphabetical', label: translate("plugins.file-explorer.label-sort-a-to-z") },
+  { key: 'alphabeticalReverse', label: translate("plugins.file-explorer.label-sort-z-to-a") },
+  { key: 'byModifiedTime', label: translate("plugins.file-explorer.label-sort-new-to-old") },
+  { key: 'byModifiedTimeReverse', label: translate("plugins.file-explorer.label-sort-old-to-new") },
+  { key: 'byCreatedTime', label: translate("plugins.file-explorer.label-sort-created-new-to-old") },
+  { key: 'byCreatedTimeReverse', label: translate("plugins.file-explorer.label-sort-created-old-to-new") },
+];
+
 
 
 
