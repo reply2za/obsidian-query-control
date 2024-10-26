@@ -1,7 +1,7 @@
 import {SortOption} from "./obsidian";
 
 
-export function createSortPopup(options: SortOption[], buttonElement: any, setSortOrderCallback: (selectedOption: string) => void) {
+export function createSortPopup(options: SortOption[], buttonElement: any, setSortOrderCallback: (selectedOption: string) => void, currentSortOrder: string) {
     // Check if tooltip already exists
     let existingTooltip = document.getElementById('query-control-sort-tooltip');
     if (existingTooltip) {
@@ -23,15 +23,14 @@ export function createSortPopup(options: SortOption[], buttonElement: any, setSo
         optionEl.classList.add('query-control-sort-option');
         optionEl.textContent = option.label;
 
-        // Add hover effect
-        optionEl.addEventListener('mouseover', () => {
-            optionEl.style.background = '#555';
-        });
-        optionEl.addEventListener('mouseout', () => {
-            optionEl.style.background = 'none';
-        });
+        if (option.key === currentSortOrder) {
+            optionEl.setAttribute('aria-current', 'true');
+            const checkmarkSpan = document.createElement('span');
+            checkmarkSpan.textContent = '✔️'; // Unicode checkmark
+            checkmarkSpan.classList.add('query-control-sort-option-checkmark');
+            optionEl.appendChild(checkmarkSpan);
+        }
 
-        // Click event to set the sort order
         optionEl.addEventListener('click', () => {
             setSortOrderCallback(option.key); // Pass the key
             tooltip.remove(); // Remove the tooltip after selection

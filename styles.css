@@ -58,3 +58,9 @@
 .query-control-sort-option:hover {
   background: #555;
 }
+
+.query-control-sort-option-checkmark {
+  color: #fff;
+  margin-left: 10px;
+  font-size: 1em;
+}

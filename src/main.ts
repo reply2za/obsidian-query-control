@@ -430,7 +430,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                               console.error(`Invalid sort option: ${selectedOptionKey}`);
                             }
                           };
-                          createSortPopup(sortOptions, this.showSortButtonEl, setSortOrderCallback);
+                          createSortPopup(sortOptions, this.showSortButtonEl, setSortOrderCallback, this.sortOrder);
                         }
                     );
                     this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", (event: MouseEvent) => {
