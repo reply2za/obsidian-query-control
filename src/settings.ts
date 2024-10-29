@@ -29,6 +29,12 @@ export const sortOptions = [
   { key: 'byCreatedTimeReverse', label: translate("plugins.file-explorer.label-sort-created-old-to-new") },
 ];
 
+const convertToRecord = (options: { key: string; label: string }[]): Record<string, string> => {
+  return options.reduce((acc, option) => {
+    acc[option.key] = option.label;
+    return acc;
+  }, {} as Record<string, string>);
+};
 
 
 
@@ -83,7 +89,7 @@ export class SettingTab extends PluginSettingTab {
     );
 
     new Setting(containerEl).setName("Default query result sort order").addDropdown(cb => {
-      cb.addOptions(sortOptions);
+      cb.addOptions(convertToRecord(sortOptions));
       cb.setValue(this.plugin.settings.defaultSortOrder);
       cb.onChange(async value => {
         (this.plugin.settings.defaultSortOrder as any) = value;
