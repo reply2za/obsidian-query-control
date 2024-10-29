@@ -12,7 +12,7 @@ import {
   WorkspaceLeaf,
   BacklinksClass,
   BacklinkDOMClass,
-  Setting, Notice, Menu
+  Setting, Notice
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -44,7 +44,6 @@ import {SortOption} from "./obsidian";
 
 const IS_DEBUG = false;
 
-const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
