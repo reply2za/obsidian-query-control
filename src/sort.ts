@@ -1,19 +1,17 @@
 import {SortOption} from "./obsidian";
 import { App } from "obsidian";
 
-
+let tooltip: HTMLDivElement | undefined;
+let removeEventListeners: () => void | undefined;
 export function createSortPopup(options: SortOption[], buttonElement: any,
                                 setSortOrderCallback: (selectedOption: string) => void,
                                 currentSortOrder: string, app: App) {
-    // Check if tooltip already exists
-    let existingTooltip = document.getElementById('query-control-sort-tooltip');
-    if (existingTooltip) {
-        existingTooltip.remove(); // Remove the existing tooltip if it's open
+    if (tooltip) {
+        removeEventListeners();
         return;
     }
-
     // Create the tooltip-like div
-    const tooltip = document.createElement('div');
+    tooltip = document.createElement('div');
     tooltip.classList.add('query-control-sort-tooltip');
     const rect = buttonElement.getBoundingClientRect();
     tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
@@ -36,7 +34,7 @@ export function createSortPopup(options: SortOption[], buttonElement: any,
 
         optionEl.addEventListener('click', () => {
             setSortOrderCallback(option.key); // Pass the key
-            tooltip.remove(); // Remove the tooltip after selection
+            removeEventListeners();
         });
 
         tooltip.appendChild(optionEl); // Add each option to the tooltip
@@ -45,14 +43,14 @@ export function createSortPopup(options: SortOption[], buttonElement: any,
     // Append the tooltip to the body
     document.body.appendChild(tooltip);
 
-
-
-    const removeEventListeners = () => {
+    removeEventListeners = () => {
         document.removeEventListener('mousedown', outsideClickListener, true);
         document.removeEventListener('touchstart', outsideClickListener, true);
-        document.removeEventListener('click', outsideClickListener, true);
+        document.removeEventListener('click', outsideClickListener);
         document.removeEventListener('keydown', keydownListener, true);
         app.workspace.off('active-leaf-change', onWorkspaceChange);
+        tooltip.remove();
+        tooltip = undefined;
     };
 
     const onWorkspaceChange = () => {
