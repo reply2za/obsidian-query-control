@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
-    "release:patch": "npm version patch -m \"chore(release): %s\"",
-    "release:minor": "npm version minor -m \"chore(release): %s\""
+    "release:patch": "npm version patch -m \"chore(release): %s\" && node updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit",
+    "release:minor": "npm version minor -m \"chore(release): %s\" && node updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit"
   },
   "keywords": [],
   "author": "",
