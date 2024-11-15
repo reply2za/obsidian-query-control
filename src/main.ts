@@ -42,7 +42,6 @@ import {SortOption} from "./obsidian";
 //       - SearchResultItem
 //         - SearchResultItemMatch
 
-const IS_DEBUG = false;
 
 const backlinkDoms = new WeakMap<HTMLElement, any>();
 
@@ -159,7 +158,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
 
 
   onunload(): void {
-    if (IS_DEBUG) console.log('EmbeddedQueryControlPlugin: onunload');
+    const unloadMessage = "Query Control: Please restart Obsidian to complete plugin unload.";
+    console.log(unloadMessage);
+    new Notice(unloadMessage);
   }
 
   patchNativeSearch(searchView: SearchView) {
