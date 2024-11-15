@@ -3,7 +3,8 @@
 # Read the version from package.json
 VERSION=$(node -p "require('./package.json').version")
 
-# Create a Git tag with the version and a message
-git tag -a "v$VERSION" -m "Release version $VERSION"
+# Delete the existing tag (if any) and create a new one on the latest commit
+git tag -d "v$VERSION" 2>/dev/null
+git tag -a "v$VERSION" -m "chore(release): v$VERSION"
 
-echo "Tag v$VERSION created successfully."
+echo "Tag v$VERSION created successfully on the latest commit."
