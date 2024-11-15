@@ -170,7 +170,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           onResize(old: any) {
             return function (...args: any[]) {
               // this works around measurement issues when the search el width
-              // goes to zero and then back to a non zero value
+              // goes to zero and then back to a non-zero value
               const _children = this.dom.vChildren?._children;
               if (this.dom.el.clientWidth === 0) {
                 _children.forEach((child: any) => {
