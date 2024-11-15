@@ -27,7 +27,7 @@ export function createSortPopup(options: SortOption[], buttonElement: any,
         if (option.key === currentSortOrder) {
             optionEl.setAttribute('aria-current', 'true');
             const checkmarkSpan = document.createElement('span');
-            checkmarkSpan.textContent = '✔️'; // Unicode checkmark
+            checkmarkSpan.textContent = '✓'; // Unicode checkmark
             checkmarkSpan.classList.add('query-control-sort-option-checkmark');
             optionEl.appendChild(checkmarkSpan);
         }
