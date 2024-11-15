@@ -7,7 +7,7 @@
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
     "postinstall": "chmod +x scripts/tag-version.sh",
-    "release:patch": "npm version patch -m \"chore(release): %s\" && node scripts/updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit && tag-version.sh",
+    "release:patch": "npm version patch -m \"chore(release): v%s\" && node scripts/updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit && tag-version.sh",
     "tag-version": "./tag-version.sh"
   },
   "keywords": [],
