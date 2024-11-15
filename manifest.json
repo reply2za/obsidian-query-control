@@ -1,7 +1,7 @@
 {
   "id": "query-control",
   "name": "Query Control",
-  "version": "0.7.11",
+  "version": "0.7.12",
   "minAppVersion": "1.7.2",
   "description": "An experimental Obsidian plugin that adds additional control to queries",
   "author": "NothingIsLost & reply2za",
