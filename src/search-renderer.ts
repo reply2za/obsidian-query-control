@@ -7,8 +7,6 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
   file: TFile;
   match: any;
   filePath: string;
-  before: string;
-  after: string;
 
   constructor(app: App, containerEl: HTMLElement, match: any) {
     // @ts-ignore
