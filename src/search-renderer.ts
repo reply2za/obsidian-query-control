@@ -64,7 +64,7 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
     }
     let before = cachedContent.slice(0, this.match.start);
     let after = cachedContent.slice(this.match.end, this.match.parent.content.length);
-    var combinedContent = before + content + after;
-    this.app.vault.modify(this.file, combinedContent);
+    const combinedContent = before + content + after;
+    await this.app.vault.modify(this.file, combinedContent);
   }
 }
