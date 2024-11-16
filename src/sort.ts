@@ -14,8 +14,10 @@ export function createSortPopup(options: SortOption[], buttonElement: any,
     tooltip = document.createElement('div');
     tooltip.classList.add('query-control-sort-tooltip');
     const rect = buttonElement.getBoundingClientRect();
-    tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
-    tooltip.style.left = `${rect.left + window.scrollX}px`;
+    const top = rect.bottom + window.scrollY + 5;
+    const left = rect.left + window.scrollX;
+    tooltip.style.setProperty('--tooltip-top', `${top}px`);
+    tooltip.style.setProperty('--tooltip-left', `${left}px`);
 
 
     // Populate the tooltip with options
