@@ -1,12 +1,13 @@
 {
   "name": "obsidian-query-control",
-  "version": "0.7.12",
+  "version": "0.7.13-dev",
   "description": "An experimental Obsidian plugin that adds additional control to queries",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
     "postinstall": "chmod +x scripts/tag-version.sh",
+    "release": "node scripts/updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit && npm run tag-version",
     "release:patch": "npm version patch -m \"chore(release): %s\" && node scripts/updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit && npm run tag-version",
     "release:minor": "npm version minor -m \"chore(release): %s\" && node scripts/updateManifestVersion.js && git add manifest.json && git commit --amend --no-edit && npm run tag-version",
     "tag-version": "./scripts/tag-version.sh"

@@ -43,6 +43,8 @@
 
 .query-control-sort-tooltip {
   position: absolute;
+  top: var(--tooltip-top);
+  left: var(--tooltip-left);
   background: #333;
   color: #fff;
   border-radius: 4px;
