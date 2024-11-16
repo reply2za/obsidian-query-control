@@ -42,7 +42,8 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
 
     this.renderer.previewEl.toggleClass("show-frontmatter", this.app.vault.getConfig("showFrontmatter"));
     let tabSize = this.app.vault.getConfig("tabSize");
-    this.renderer.previewEl.style.tabSize = String(tabSize);
+    // this.renderer.previewEl.style.tabSize = String(tabSize);
+    this.renderer.previewEl.style.setProperty('--tab-size', `${tabSize}px`);
     this.renderer.rerender();
   }
 
