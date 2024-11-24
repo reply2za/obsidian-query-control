@@ -1,22 +1,23 @@
-import { around } from "monkey-around";
+import {around} from "monkey-around";
 import {
+  BacklinkDOMClass,
+  BacklinksClass,
   Component,
   EmbeddedSearchClass,
   Modal,
+  Notice,
   Plugin,
   SearchHeaderDOM,
   SearchResultDOM,
   SearchResultItem,
   SearchView,
+  Setting,
   ViewCreator,
-  WorkspaceLeaf,
-  BacklinksClass,
-  BacklinkDOMClass,
-  Setting, Notice
+  WorkspaceLeaf
 } from "obsidian";
-import { SearchMarkdownRenderer } from "./search-renderer";
-import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
-import { translate } from "./utils";
+import {SearchMarkdownRenderer} from "./search-renderer";
+import {DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions} from "./settings";
+import {translate} from "./utils";
 import {createSortPopup} from "./sort";
 import {SortOption} from "./obsidian";
 
@@ -642,17 +643,20 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.renderComponent = new Component();
                   this.renderComponent.load();
                 }
+
+                if (!this.dom) {
+                  console.warn('Backlink `dom` is undefined. Initializing default properties.');
+                  this.dom = {};
+                }
+
                 this.backlinkDom.parent = this;
                 this.unlinkedDom.parent = this;
 
-                let settings: Record<string, string> = {};
-
-                this.dom.settings = settings;
+                this.dom.settings = this.dom.settings || {};
               } catch (err) {
                 console.error('Error in Backlink.onload:', err);
               }
-              const result = old.call(this, ...args);
-              return result;
+              return old.call(this, ...args);
             };
           },
         })
