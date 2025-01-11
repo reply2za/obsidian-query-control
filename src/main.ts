@@ -1,22 +1,23 @@
-import { around } from "monkey-around";
+import {around} from "monkey-around";
 import {
+  BacklinkDOMClass,
+  BacklinksClass,
   Component,
   EmbeddedSearchClass,
   Modal,
+  Notice,
   Plugin,
   SearchHeaderDOM,
   SearchResultDOM,
   SearchResultItem,
   SearchView,
+  Setting,
   ViewCreator,
-  WorkspaceLeaf,
-  BacklinksClass,
-  BacklinkDOMClass,
-  Setting, Notice
+  WorkspaceLeaf
 } from "obsidian";
-import { SearchMarkdownRenderer } from "./search-renderer";
-import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
-import { translate } from "./utils";
+import {SearchMarkdownRenderer} from "./search-renderer";
+import {DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions} from "./settings";
+import {translate} from "./utils";
 import {createSortPopup} from "./sort";
 import {SortOption} from "./obsidian";
 
@@ -274,19 +275,21 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
             return function (...args: any[]) {
               try {
                 // Are we in a backlinks view?
-                let containerEl = this.el.closest(".backlink-pane");
-                let backlinksInstance = backlinkDoms.get(containerEl);
-                if (containerEl && backlinksInstance) {
-                  if (!backlinksInstance.patched) {
-                    handleBacklinks(this, plugin, containerEl, backlinksInstance);
+                const containerEl = this.el.closest(".backlink-pane");
+                if (containerEl) {
+                  const backlinksInstance = backlinkDoms.get(containerEl);
+                  if (backlinksInstance) {
+                    if (!backlinksInstance.patched) {
+                      handleBacklinks(this, plugin, backlinksInstance);
+                    }
                   }
                 }
-
                 // Are we in a native search view?
                 if (
                     !this.parent?.searchParamsContainerEl?.patched &&
                     this.el?.parentElement?.getAttribute("data-type") === "search"
                 ) {
+                  if (!this.parent) return;
                   this.parent.searchParamsContainerEl.patched = true;
                   new Setting(this.parent.searchParamsContainerEl)
                       .setName("Render Markdown")
@@ -642,17 +645,20 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.renderComponent = new Component();
                   this.renderComponent.load();
                 }
+
+                if (!this.dom) {
+                  console.warn('Backlink `dom` is undefined. Initializing default properties.');
+                  this.dom = {};
+                }
+
                 this.backlinkDom.parent = this;
                 this.unlinkedDom.parent = this;
 
-                let settings: Record<string, string> = {};
-
-                this.dom.settings = settings;
+                this.dom.settings = this.dom.settings || {};
               } catch (err) {
                 console.error('Error in Backlink.onload:', err);
               }
-              const result = old.call(this, ...args);
-              return result;
+              return old.call(this, ...args);
             };
           },
         })
@@ -664,7 +670,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
 function handleBacklinks(
     instance: BacklinkDOMClass,
     plugin: EmbeddedQueryControlPlugin,
-    containerEl: HTMLElement,
     backlinksInstance: BacklinksClass
 ) {
   if (backlinksInstance) {

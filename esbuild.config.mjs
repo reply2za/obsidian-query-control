@@ -15,7 +15,7 @@ esbuild
     banner: {
       js: banner,
     },
-    minify: prod ? true : false,
+    minify: prod,
     entryPoints: ["src/main.ts"],
     bundle: true,
     external: [
@@ -38,7 +38,7 @@ esbuild
       ...builtins,
     ],
     format: "cjs",
-    watch: !prod,
+    watch: false,
     target: "es2016",
     logLevel: "info",
     sourcemap: prod ? false : "inline",
