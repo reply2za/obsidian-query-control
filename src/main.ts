@@ -275,19 +275,21 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
             return function (...args: any[]) {
               try {
                 // Are we in a backlinks view?
-                let containerEl = this.el.closest(".backlink-pane");
-                let backlinksInstance = backlinkDoms.get(containerEl);
-                if (containerEl && backlinksInstance) {
-                  if (!backlinksInstance.patched) {
-                    handleBacklinks(this, plugin, containerEl, backlinksInstance);
+                const containerEl = this.el.closest(".backlink-pane");
+                if (containerEl) {
+                  const backlinksInstance = backlinkDoms.get(containerEl);
+                  if (backlinksInstance) {
+                    if (!backlinksInstance.patched) {
+                      handleBacklinks(this, plugin, backlinksInstance);
+                    }
                   }
                 }
-
                 // Are we in a native search view?
                 if (
                     !this.parent?.searchParamsContainerEl?.patched &&
                     this.el?.parentElement?.getAttribute("data-type") === "search"
                 ) {
+                  if (!this.parent) return;
                   this.parent.searchParamsContainerEl.patched = true;
                   new Setting(this.parent.searchParamsContainerEl)
                       .setName("Render Markdown")
@@ -668,7 +670,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
 function handleBacklinks(
     instance: BacklinkDOMClass,
     plugin: EmbeddedQueryControlPlugin,
-    containerEl: HTMLElement,
     backlinksInstance: BacklinksClass
 ) {
   if (backlinksInstance) {
