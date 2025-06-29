@@ -31,7 +31,7 @@ Each of the extended keys are optional. If a key is not provided, the configured
 
 ### Installing via BRAT
 
-Install the BRAT plugin via the Obsidian Plugin Browser and then add the beta repository "nothingislost/obsidian-embedded-query-control"
+Install the BRAT plugin via the Obsidian Plugin Browser and then add the beta repository "reply2za/obsidian-query-control"
 
 ### Manually installing the plugin
 
