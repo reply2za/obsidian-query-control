@@ -7,6 +7,40 @@
   justify-content: center; /* works around issues with minimal theme */
 }
 
+.workspace-leaf-content[data-type="markdown"] .internal-query .internal-query-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.75em 1em;
+  margin: 0.5em auto 1em;
+  max-width: 100%;
+  text-align: center;
+  border-radius: var(--radius-l, 12px);
+  background-color: var(--background-secondary, rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--background-modifier-border, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 6px 18px -12px var(--shadow-s, rgba(0, 0, 0, 0.4));
+  font-size: var(--font-ui-large, 1.05em);
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1.4;
+}
+
+.workspace-leaf-content[data-type="markdown"] .internal-query .internal-query-header::after {
+  content: "";
+  display: block;
+  width: 75px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+      90deg,
+      var(--interactive-accent, #7f6df2) 0%,
+      var(--text-highlight-bg, rgba(255, 215, 0, 0.9)) 100%
+  );
+  opacity: 0.9;
+}
+
 .workspace-leaf-content[data-type="markdown"] .internal-query .is-hidden {
   display: none;
 }
