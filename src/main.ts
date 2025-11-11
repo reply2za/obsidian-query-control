@@ -16,7 +16,14 @@ import {
   WorkspaceLeaf
 } from "obsidian";
 import {SearchMarkdownRenderer} from "./search-renderer";
-import {DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions} from "./settings";
+import {
+  ControlVisibilityKey,
+  ControlVisibilityOption,
+  DEFAULT_SETTINGS,
+  EmbeddedQueryControlSettings,
+  SettingTab,
+  sortOptions
+} from "./settings";
 import {translate} from "./utils";
 import {createSortPopup} from "./sort";
 import {SortOption} from "./obsidian";
@@ -51,10 +58,176 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   SearchResultsExport: any;
   settings: EmbeddedQueryControlSettings;
   settingsTab: SettingTab;
+  embeddedSearchResultDoms: Set<SearchResultDOM> = new Set();
+  backlinkControlContexts: Map<BacklinkDOMClass, BacklinksClass> = new Map();
   isSearchResultItemPatched: boolean;
   isSearchResultItemMatchPatched: boolean;
   isBacklinksPatched: boolean;
   isSearchPatched: boolean;
+
+  getControlVisibility(control: ControlVisibilityKey): ControlVisibilityOption {
+    return this.settings?.controlVisibility?.[control] ?? DEFAULT_SETTINGS.controlVisibility[control];
+  }
+
+  isControlVisible(control: ControlVisibilityKey): boolean {
+    return this.getControlVisibility(control) === "visible";
+  }
+
+  refreshControlVisibility() {
+    for (const dom of Array.from(this.embeddedSearchResultDoms)) {
+      const domAny = dom as any;
+      if (!domAny?.el?.isConnected) {
+        this.embeddedSearchResultDoms.delete(dom);
+        continue;
+      }
+      this.applyEmbeddedSearchControlVisibility(domAny);
+    }
+    for (const [dom, backlinksInstance] of Array.from(this.backlinkControlContexts.entries())) {
+      const domAny = dom as any;
+      const backlinksAny = backlinksInstance as any;
+      const headerConnected = backlinksAny?.headerDom?.navHeaderEl?.isConnected;
+      if (!domAny?.el?.isConnected || !headerConnected) {
+        this.backlinkControlContexts.delete(dom);
+        continue;
+      }
+      this.applyBacklinkControlVisibility(dom as BacklinkDOMClass, backlinksInstance);
+    }
+  }
+
+  private toggleVisibility(el: HTMLElement | null | undefined, visible: boolean) {
+    if (!el) return;
+    const element: any = el;
+    if (typeof element.toggleClass === "function") {
+      element.toggleClass("is-hidden", !visible);
+    } else {
+      el.classList.toggle("is-hidden", !visible);
+    }
+  }
+
+  applyEmbeddedSearchControlVisibility(searchResultDom: SearchResultDOM) {
+    const dom = searchResultDom as any;
+    const headerDom = dom?.headerDom;
+    if (!headerDom?.addNavButton) return;
+
+    const ensureButton = (property: string, factory: () => HTMLElement | null) => {
+      if (!dom[property]) {
+        dom[property] = factory();
+      }
+      return dom[property] as HTMLElement | null;
+    };
+
+    const collapseButton = ensureButton("collapseAllButtonEl", () =>
+        headerDom.addNavButton(
+            "bullet-list",
+            translate("plugins.search.label-collapse-results"),
+            (event: MouseEvent) => {
+              event.stopPropagation();
+              return dom.setCollapseAll(!dom.collapseAll);
+            }
+        )
+    );
+    this.toggleVisibility(collapseButton, this.isControlVisible("collapseAll"));
+
+    const extraContextButton = ensureButton("extraContextButtonEl", () =>
+        headerDom.addNavButton(
+            "expand-vertically",
+            translate("plugins.search.label-more-context"),
+            (event: MouseEvent) => {
+              event.stopPropagation();
+              return dom.setExtraContext(!dom.extraContext);
+            }
+        )
+    );
+    this.toggleVisibility(extraContextButton, this.isControlVisible("extraContext"));
+
+    const sortButton = ensureButton("showSortButtonEl", () =>
+        headerDom.addNavButton(
+            "arrow-up-narrow-wide",
+            "Sort",
+            (event: MouseEvent) => {
+              event.stopPropagation();
+              const validSortOptionKeys = sortOptions.map(option => option.key);
+              const setSortOrderCallback = (selectedOptionKey: string) => {
+                if (validSortOptionKeys.includes(selectedOptionKey)) {
+                  dom.sortOrder = selectedOptionKey;
+                  dom.setSortOrder(selectedOptionKey);
+                } else {
+                  console.error(`Invalid sort option: ${selectedOptionKey}`);
+                }
+              };
+              const targetEl = dom.showSortButtonEl ?? (event.currentTarget as HTMLElement);
+              if (targetEl) {
+                createSortPopup(sortOptions, targetEl, setSortOrderCallback, dom.sortOrder, this.app);
+              }
+            }
+        )
+    );
+    this.toggleVisibility(sortButton, this.isControlVisible("sort"));
+
+    const hideTitleButton = ensureButton("showTitleButtonEl", () =>
+        headerDom.addNavButton("strikethrough-glyph", "Hide title", (event: MouseEvent) => {
+          event.stopPropagation();
+          return dom.setTitleDisplay(!dom.showTitle);
+        })
+    );
+    this.toggleVisibility(hideTitleButton, this.isControlVisible("hideTitle"));
+
+    const hideResultsButton = ensureButton("showResultsButtonEl", () =>
+        headerDom.addNavButton("minus-with-circle", "Hide results", (event: MouseEvent) => {
+          event.stopPropagation();
+          return dom.setResultsDisplay(!dom.showResults);
+        })
+    );
+    this.toggleVisibility(hideResultsButton, this.isControlVisible("hideResults"));
+
+    const renderMarkdownButton = ensureButton("renderMarkdownButtonEl", () =>
+        headerDom.addNavButton("reading-glasses", "Render Markdown", (event: MouseEvent) => {
+          event.stopPropagation();
+          return dom.setRenderMarkdown(!dom.renderMarkdown);
+        })
+    );
+    this.toggleVisibility(renderMarkdownButton, this.isControlVisible("renderMarkdown"));
+
+    const copyResultsButton = ensureButton("copyResultsButtonEl", () =>
+        headerDom.addNavButton(
+            "documents",
+            "Copy results",
+            dom.onCopyResultsClick ? dom.onCopyResultsClick.bind(dom) : () => {}
+        )
+    );
+    this.toggleVisibility(copyResultsButton, this.isControlVisible("copyResults"));
+  }
+
+  applyBacklinkControlVisibility(instance: BacklinkDOMClass, backlinksInstance: BacklinksClass) {
+    const dom = instance as any;
+    const backlinks = backlinksInstance as any;
+    const headerDom = backlinks?.headerDom;
+    if (!headerDom?.addNavButton) return;
+
+    const ensureButton = (property: string, factory: () => HTMLElement | null) => {
+      if (!dom[property]) {
+        dom[property] = factory();
+      }
+      return dom[property] as HTMLElement | null;
+    };
+
+    const renderButton = ensureButton("renderMarkdownButtonEl", () =>
+        headerDom.addNavButton("reading-glasses", "Render Markdown", (event: MouseEvent) => {
+          event.stopPropagation();
+          return dom.setRenderMarkdown(!dom.renderMarkdown);
+        })
+    );
+    this.toggleVisibility(renderButton, this.isControlVisible("renderMarkdown"));
+
+    const copyButton = ensureButton("copyResultsButtonEl", () =>
+        headerDom.addNavButton(
+            "documents",
+            "Copy results",
+            dom.onCopyResultsClick ? dom.onCopyResultsClick.bind(dom) : () => {}
+        )
+    );
+    this.toggleVisibility(copyButton, this.isControlVisible("copyResults"));
+  }
 
   async onload() {
     await this.loadSettings();
@@ -138,7 +311,14 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    this.settings.controlVisibility = Object.assign(
+        {},
+        DEFAULT_SETTINGS.controlVisibility,
+        data?.controlVisibility ?? {}
+    );
+    this.refreshControlVisibility();
   }
 
   async saveSettings() {
@@ -325,7 +505,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.setExtraContext = function (value: boolean) {
                       const _children = this.vChildren?._children;
                       this.extraContext = value;
-                      this.extraContextButtonEl.toggleClass("is-active", value);
+                      this.extraContextButtonEl?.toggleClass("is-active", value);
                       _children.forEach((child: any) => {
                         child.setExtraContext(value);
                       });
@@ -333,12 +513,12 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     };
                     this.setTitleDisplay = function (value: boolean) {
                       this.showTitle = value;
-                      this.showTitleButtonEl.toggleClass("is-active", value);
-                      defaultHeaderEl.toggleClass("is-hidden", value);
+                      this.showTitleButtonEl?.toggleClass("is-active", value);
+                      defaultHeaderEl?.toggleClass("is-hidden", value);
                     };
                     this.setResultsDisplay = function (value: boolean) {
                       this.showResults = value;
-                      this.showResultsButtonEl.toggleClass("is-active", value);
+                      this.showResultsButtonEl?.toggleClass("is-active", value);
                       this.el.toggleClass("is-hidden", value);
                     };
                     this.setRenderMarkdown = function (value: boolean) {
@@ -350,11 +530,11 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       this.infinityScroll.invalidateAll();
                       this.childrenEl.toggleClass("cm-preview-code-block", value);
                       this.childrenEl.toggleClass("is-rendered", value);
-                      this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                      this.renderMarkdownButtonEl?.toggleClass("is-active", value);
                     };
                     this.setCollapseAll = function (value: boolean) {
                       const _children = this.vChildren?._children;
-                      this.collapseAllButtonEl.toggleClass("is-active", value);
+                      this.collapseAllButtonEl?.toggleClass("is-active", value);
                       this.collapseAll = value;
                       _children.forEach((child: any) => {
                         child.setCollapse(value, false);
@@ -365,6 +545,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       this.sortOrder = sortType;
                       this.changed();
                       this.infinityScroll.invalidateAll();
+                      this.showSortButtonEl?.setAttribute('aria-label', `Sort (${sortOptions.find(option => option.key === sortType)?.label ?? sortType})`);
                     };
                     this.onCopyResultsClick = async (event: MouseEvent) => {
                       event.preventDefault();
@@ -395,83 +576,53 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     };
 
 
-                    let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
-                    defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
-                    this.collapseAllButtonEl = headerDom.addNavButton(
-                        "bullet-list",
-                        translate("plugins.search.label-collapse-results"),
-                        (event: MouseEvent) => {
-                          event.stopPropagation();
-                          return this.setCollapseAll(!this.collapseAll);
-                        }
-                    );
-                    this.extraContextButtonEl = headerDom.addNavButton(
-                        "expand-vertically",
-                        translate("plugins.search.label-more-context"),
-                        (event: MouseEvent) => {
-                          event.stopPropagation();
-                          return this.setExtraContext(!this.extraContext);
-                        }
-                    );
-                    this.showSortButtonEl = headerDom.addNavButton(
-                        'arrow-up-narrow-wide', // Initial icon
-                        'Sort', // Tooltip
-                        (event: MouseEvent) => {
-                          event.stopPropagation();
-                          const validSortOptionKeys = sortOptions.map(option => option.key);
-                          const setSortOrderCallback = (selectedOptionKey: string) => {
-                            if (validSortOptionKeys.includes(selectedOptionKey)) {
-                              this.sortOrder = selectedOptionKey;
+                    this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement);
+                    defaultHeaderEl?.insertAdjacentElement("afterend", this.headerDom.navHeaderEl);
+                    plugin.embeddedSearchResultDoms.add(this);
+                    plugin.applyEmbeddedSearchControlVisibility(this);
 
-                              // Find the selected option's label
-                              const selectedOption: SortOption = sortOptions.find(option => option.key === selectedOptionKey);
-                              const toolTip = `Sort (${selectedOption.label})`;
+                    const allSettings: Record<string, any> = {};
+                    allSettings.collapsed = plugin.settings.defaultCollapse;
+                    allSettings.context = plugin.settings.defaultShowContext;
+                    allSettings.hideTitle = plugin.settings.defaultHideTitle;
+                    allSettings.hideResults = plugin.settings.defaultHideResults;
+                    allSettings.renderMarkdown = plugin.settings.defaultRenderMarkdown;
+                    allSettings.sort = plugin.settings.defaultSortOrder;
 
-                              this.showSortButtonEl.setAttribute('aria-label', toolTip);
-                              this.setSortOrder(selectedOptionKey);
-                            } else {
-                              console.error(`Invalid sort option: ${selectedOptionKey}`);
-                            }
-                          };
-                          createSortPopup(sortOptions, this.showSortButtonEl, setSortOrderCallback, this.sortOrder, this.app);
-                        }
-                    );
-                    this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", (event: MouseEvent) => {
-                      event.stopPropagation();
-                      return this.setTitleDisplay(!this.showTitle);
-                    });
-                    this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", (event: MouseEvent) => {
-                      event.stopPropagation();
-                      return this.setResultsDisplay(!this.showResults);
-                    });
-                    this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", (event: MouseEvent) => {
-                      event.stopPropagation();
-                      return this.setRenderMarkdown(!this.renderMarkdown);
-                    });
-                    headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
-                    let allSettings = {
-                      title: plugin.settings.defaultHideResults,
-                      collapsed: plugin.settings.defaultCollapse,
-                      context: plugin.settings.defaultShowContext,
-                      hideTitle: plugin.settings.defaultHideTitle,
-                      hideResults: plugin.settings.defaultHideResults,
-                      renderMarkdown: plugin.settings.defaultRenderMarkdown,
-                      sort: plugin.settings.defaultSortOrder,
-                    };
                     if (!this.settings) this.settings = {};
                     Object.entries(allSettings).forEach(([setting, defaultValue]) => {
-                      if (!this.settings.hasOwnProperty(setting)) {
+                      if (!Object.prototype.hasOwnProperty.call(this.settings, setting)) {
                         this.settings[setting] = defaultValue;
-                      } else if (setting === "sort" && !sortOptions.hasOwnProperty(this.settings.sort)) {
+                      } else if (
+                          setting === "sort" &&
+                          typeof this.settings.sort === "string" &&
+                          !sortOptions.some(option => option.key === this.settings.sort)
+                      ) {
                         this.settings[setting] = defaultValue;
                       }
                     });
-                    this.setExtraContext(this.settings.context);
-                    this.sortOrder = this.settings.sort;
-                    this.setCollapseAll(this.settings.collapsed);
-                    this.setTitleDisplay(this.settings.hideTitle);
-                    this.setRenderMarkdown(this.settings.renderMarkdown);
-                    this.setResultsDisplay(this.settings.hideResults);
+
+                    const hasSetting = (key: string) => Object.prototype.hasOwnProperty.call(this.settings, key);
+
+                    if (typeof this.settings.context === "boolean") {
+                      this.setExtraContext(this.settings.context);
+                    }
+                    if (typeof this.settings.sort === "string") {
+                      this.sortOrder = this.settings.sort;
+                      this.setSortOrder(this.settings.sort);
+                    }
+                    if (typeof this.settings.collapsed === "boolean") {
+                      this.setCollapseAll(this.settings.collapsed);
+                    }
+                    if (typeof this.settings.hideTitle === "boolean") {
+                      this.setTitleDisplay(this.settings.hideTitle);
+                    }
+                    if (typeof this.settings.renderMarkdown === "boolean") {
+                      this.setRenderMarkdown(this.settings.renderMarkdown);
+                    }
+                    if (typeof this.settings.hideResults === "boolean") {
+                      this.setResultsDisplay(this.settings.hideResults);
+                    }
                   }
                 }
               } catch (err) {
@@ -559,6 +710,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   }
 
   patchSearchView(embeddedSearch: EmbeddedSearchClass) {
+    const plugin = this;
     const EmbeddedSearch = embeddedSearch.constructor as typeof EmbeddedSearchClass;
     const SearchResult = embeddedSearch.dom.constructor as typeof SearchResultDOM;
 
@@ -566,6 +718,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         around(EmbeddedSearch.prototype, {
           onunload(old: any) {
             return function (...args: any[]) {
+              if (this.dom) {
+                plugin.embeddedSearchResultDoms.delete(this.dom);
+              }
               if (this.renderComponent) {
                 this.renderComponent.unload();
                 this.dom = null;
@@ -619,6 +774,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   }
 
   patchBacklinksView(backlinks: BacklinksClass) {
+    const plugin = this;
     const Backlink = backlinks.constructor as typeof EmbeddedSearchClass;
     const BacklinkDOM = backlinks.backlinkDom.constructor as typeof BacklinkDOMClass;
 
@@ -626,6 +782,12 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         around(Backlink.prototype, {
           onunload(old: any) {
             return function (...args: any[]) {
+              if (this.backlinkDom) {
+                plugin.backlinkControlContexts.delete(this.backlinkDom);
+              }
+              if (this.unlinkedDom) {
+                plugin.backlinkControlContexts.delete(this.unlinkedDom);
+              }
               if (this.renderComponent) {
                 this.renderComponent.unload();
                 this.dom = null;
@@ -673,9 +835,11 @@ function handleBacklinks(
     backlinksInstance: BacklinksClass
 ) {
   if (backlinksInstance) {
-    backlinksInstance.patched = true;
-    instance.setRenderMarkdown = function (value: boolean) {
-      const doms = [backlinksInstance.backlinkDom, backlinksInstance.unlinkedDom];
+    const backlinks = backlinksInstance as any;
+    const instanceDom = instance as any;
+    backlinks.patched = true;
+    instanceDom.setRenderMarkdown = function (value: boolean) {
+      const doms = [backlinks.backlinkDom, backlinks.unlinkedDom];
       doms.forEach(dom => {
         dom.renderMarkdown = value;
         const _children = dom.vChildren?._children;
@@ -686,17 +850,17 @@ function handleBacklinks(
         dom.childrenEl.toggleClass("cm-preview-code-block", value);
         dom.childrenEl.toggleClass("is-rendered", value);
       });
-      this.renderMarkdownButtonEl.toggleClass("is-active", value);
+      this.renderMarkdownButtonEl?.toggleClass("is-active", value);
     };
 
     // Updated onCopyResultsClick method
-    instance.onCopyResultsClick = async (event: MouseEvent) => {
+    instanceDom.onCopyResultsClick = async (event: MouseEvent) => {
       event.stopPropagation();
       event.preventDefault();
 
       // Collect the search results
       let results = [];
-      const doms = [backlinksInstance.backlinkDom, backlinksInstance.unlinkedDom];
+      const doms = [backlinks.backlinkDom, backlinks.unlinkedDom];
 
       for (let dom of doms) {
         const _children = dom.vChildren?._children;
@@ -722,38 +886,42 @@ function handleBacklinks(
       }
     };
 
-    // Ensure the button is bound to the updated method
-    instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
-        "reading-glasses",
-        "Render Markdown",
-        (event: MouseEvent) => {
-          event.stopPropagation();
-          return instance.setRenderMarkdown(!instance.renderMarkdown);
-        }
-    );
-    backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
+    plugin.backlinkControlContexts.set(instance, backlinksInstance);
+    plugin.applyBacklinkControlVisibility(instance, backlinksInstance);
 
-    let allSettings = {
-      title: plugin.settings.defaultHideResults,
-      collapsed: plugin.settings.defaultCollapse,
-      context: plugin.settings.defaultShowContext,
-      hideTitle: plugin.settings.defaultHideTitle,
-      hideResults: plugin.settings.defaultHideResults,
-      renderMarkdown: plugin.settings.defaultRenderMarkdown,
-      sort: plugin.settings.defaultSortOrder,
-    };
-    if (!instance.settings) instance.settings = {};
+    const allSettings: Record<string, any> = {};
+    allSettings.collapsed = plugin.settings.defaultCollapse;
+    allSettings.context = plugin.settings.defaultShowContext;
+    allSettings.renderMarkdown = plugin.settings.defaultRenderMarkdown;
+    allSettings.sort = plugin.settings.defaultSortOrder;
+
+    if (!instanceDom.settings) instanceDom.settings = {};
     Object.entries(allSettings).forEach(([setting, defaultValue]) => {
-      if (!instance.settings.hasOwnProperty(setting)) {
-        instance.settings[setting] = defaultValue;
-      } else if (setting === "sort" && !sortOptions.hasOwnProperty(instance.settings.sort)) {
-        instance.settings[setting] = defaultValue;
+      if (!Object.prototype.hasOwnProperty.call(instanceDom.settings, setting)) {
+        instanceDom.settings[setting] = defaultValue;
+      } else if (
+          setting === "sort" &&
+          typeof instanceDom.settings.sort === "string" &&
+          !sortOptions.some(option => option.key === instanceDom.settings.sort)
+      ) {
+        instanceDom.settings[setting] = defaultValue;
       }
     });
-    backlinksInstance.setExtraContext(instance.settings.context);
-    backlinksInstance.sortOrder = instance.settings.sort;
-    backlinksInstance.setCollapseAll(instance.settings.collapsed);
-    instance.setRenderMarkdown(instance.settings.renderMarkdown);
+
+    const hasSetting = (key: string) => Object.prototype.hasOwnProperty.call(instanceDom.settings, key);
+
+    if (typeof instanceDom.settings.context === "boolean") {
+      backlinks.setExtraContext(instanceDom.settings.context);
+    }
+    if (typeof instanceDom.settings.sort === "string") {
+      backlinks.sortOrder = instanceDom.settings.sort;
+    }
+    if (typeof instanceDom.settings.collapsed === "boolean") {
+      backlinks.setCollapseAll(instanceDom.settings.collapsed);
+    }
+    if (typeof instanceDom.settings.renderMarkdown === "boolean") {
+      instanceDom.setRenderMarkdown(instanceDom.settings.renderMarkdown);
+    }
   }
 }
 

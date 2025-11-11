@@ -2,6 +2,28 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import EmbeddedQueryControlPlugin from "./main";
 import { translate } from "./utils";
 
+export type ControlVisibilityOption = "visible" | "hidden";
+
+export type ControlVisibilityKey =
+  | "collapseAll"
+  | "extraContext"
+  | "sort"
+  | "hideTitle"
+  | "hideResults"
+  | "renderMarkdown"
+  | "copyResults";
+
+export interface ControlVisibilitySettings {
+  [key: string]: ControlVisibilityOption;
+  collapseAll: ControlVisibilityOption;
+  extraContext: ControlVisibilityOption;
+  sort: ControlVisibilityOption;
+  hideTitle: ControlVisibilityOption;
+  hideResults: ControlVisibilityOption;
+  renderMarkdown: ControlVisibilityOption;
+  copyResults: ControlVisibilityOption;
+}
+
 export interface EmbeddedQueryControlSettings {
   defaultCollapse: boolean;
   defaultShowContext: boolean;
@@ -9,6 +31,7 @@ export interface EmbeddedQueryControlSettings {
   defaultHideResults: boolean;
   defaultRenderMarkdown: boolean;
   defaultSortOrder: string;
+  controlVisibility: ControlVisibilitySettings;
 }
 
 export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
@@ -18,6 +41,15 @@ export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
   defaultHideResults: false,
   defaultRenderMarkdown: false,
   defaultSortOrder: "alphabetical",
+  controlVisibility: {
+    collapseAll: "visible",
+    extraContext: "visible",
+    sort: "visible",
+    hideTitle: "visible",
+    hideResults: "visible",
+    renderMarkdown: "visible",
+    copyResults: "visible",
+  },
 };
 // alphabetical|alphabeticalReverse|byModifiedTime|byModifiedTimeReverse|byCreatedTime|byCreatedTimeReverse
 export const sortOptions = [
@@ -36,7 +68,22 @@ const convertToRecord = (options: { key: string; label: string }[]): Record<stri
   }, {} as Record<string, string>);
 };
 
+const CONTROL_VISIBILITY_LABELS: Record<ControlVisibilityOption, string> = {
+  visible: "Visible",
+  hidden: "Hidden",
+};
 
+const CONTROL_VISIBILITY_ORDER: ControlVisibilityOption[] = ["visible", "hidden"];
+
+const CONTROL_DISPLAY_NAMES: Record<ControlVisibilityKey, string> = {
+  collapseAll: "Collapse results toggle",
+  extraContext: "More context toggle",
+  sort: "Sort menu",
+  hideTitle: "Hide title toggle",
+  hideResults: "Hide results toggle",
+  renderMarkdown: "Render markdown toggle",
+  copyResults: "Copy results button",
+};
 
 export class SettingTab extends PluginSettingTab {
   plugin: EmbeddedQueryControlPlugin;
@@ -95,6 +142,40 @@ export class SettingTab extends PluginSettingTab {
         (this.plugin.settings.defaultSortOrder as any) = value;
         await this.plugin.saveSettings();
       });
+    });
+
+    containerEl.createEl("h2", { text: "Control visibility" });
+
+    const descriptionMap: Record<ControlVisibilityKey, string> = {
+      collapseAll: "Choose whether the Collapse Results toolbar control is shown.",
+      extraContext: "Choose whether the More Context toolbar control is shown.",
+      sort: "Choose whether the Sort toolbar control is shown.",
+      hideTitle: "Choose whether the Hide Title toolbar control is shown.",
+      hideResults: "Choose whether the Hide Results toolbar control is shown.",
+      renderMarkdown: "Choose whether the Render Markdown toolbar control is shown.",
+      copyResults: "Choose whether the Copy Results toolbar control is shown.",
+    };
+
+    (Object.keys(CONTROL_DISPLAY_NAMES) as ControlVisibilityKey[]).forEach(controlKey => {
+      const visibilityOptions = CONTROL_VISIBILITY_ORDER.reduce((acc, option) => {
+        acc[option] = CONTROL_VISIBILITY_LABELS[option];
+        return acc;
+      }, {} as Record<ControlVisibilityOption, string>);
+
+      new Setting(containerEl)
+        .setName(CONTROL_DISPLAY_NAMES[controlKey])
+        .setDesc(
+          `${descriptionMap[controlKey]} Hidden keeps the control's current state but removes the toolbar button.`
+        )
+        .addDropdown(drop => {
+          drop.addOptions(visibilityOptions);
+          drop.setValue(this.plugin.settings.controlVisibility[controlKey]);
+          drop.onChange(async value => {
+            this.plugin.settings.controlVisibility[controlKey] = value as ControlVisibilityOption;
+            this.plugin.refreshControlVisibility();
+            await this.plugin.saveSettings();
+          });
+        });
     });
   }
 }
