@@ -221,6 +221,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.dom.childrenEl.toggleClass("cm-preview-code-block", value);
                     this.dom.childrenEl.toggleClass("is-rendered", value);
                     this.renderMarkdownButtonEl?.toggleClass("is-active", value);
+                    if (this.settings) {
+                      this.settings.renderMarkdown = value;
+                    }
                   };
                   this.renderMarkdownButtonEl = this.headerDom?.addNavButton("reading-glasses", "Render Markdown", () => {
                     return this.setRenderMarkdown(!this.dom.renderMarkdown);
@@ -330,16 +333,25 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                         child.setExtraContext(value);
                       });
                       this.infinityScroll.invalidateAll();
+                      if (this.settings) {
+                        this.settings.context = value;
+                      }
                     };
                     this.setTitleDisplay = function (value: boolean) {
                       this.showTitle = value;
                       this.showTitleButtonEl.toggleClass("is-active", value);
                       defaultHeaderEl.toggleClass("is-hidden", value);
+                      if (this.settings) {
+                        this.settings.hideTitle = value;
+                      }
                     };
                     this.setResultsDisplay = function (value: boolean) {
                       this.showResults = value;
                       this.showResultsButtonEl.toggleClass("is-active", value);
                       this.el.toggleClass("is-hidden", value);
+                      if (this.settings) {
+                        this.settings.hideResults = value;
+                      }
                     };
                     this.setRenderMarkdown = function (value: boolean) {
                       this.renderMarkdown = value;
@@ -351,6 +363,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       this.childrenEl.toggleClass("cm-preview-code-block", value);
                       this.childrenEl.toggleClass("is-rendered", value);
                       this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                      if (this.settings) {
+                        this.settings.renderMarkdown = value;
+                      }
                     };
                     this.setCollapseAll = function (value: boolean) {
                       const _children = this.vChildren?._children;
@@ -360,11 +375,17 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                         child.setCollapse(value, false);
                       });
                       this.infinityScroll.invalidateAll();
+                      if (this.settings) {
+                        this.settings.collapsed = value;
+                      }
                     };
                     this.setSortOrder = (sortType: string) => {
                       this.sortOrder = sortType;
                       this.changed();
                       this.infinityScroll.invalidateAll();
+                      if (this.settings) {
+                        this.settings.sort = sortType;
+                      }
                     };
                     this.onCopyResultsClick = async (event: MouseEvent) => {
                       event.preventDefault();
@@ -687,6 +708,10 @@ function handleBacklinks(
         dom.childrenEl.toggleClass("is-rendered", value);
       });
       this.renderMarkdownButtonEl.toggleClass("is-active", value);
+      if (!this.settings) {
+        this.settings = {};
+      }
+      this.settings.renderMarkdown = value;
     };
 
     // Updated onCopyResultsClick method
