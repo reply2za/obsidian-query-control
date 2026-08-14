@@ -17,6 +17,7 @@ title: custom query name
 collapsed: true | false
 context: true | false
 hideTitle: true | false
+hideButtons: true | false
 hideResults: true | false
 renderMarkdown: true | false
 sort: alphabetical | alphabeticalReverse | byModifiedTime | byModifiedTimeReverse | byCreatedTime | byCreatedTimeReverse
