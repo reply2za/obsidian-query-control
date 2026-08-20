@@ -729,7 +729,7 @@ function handleBacklinks(
     };
 
     // Ensure the button is bound to the updated method
-    instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
+    const renderMarkdownBtn = instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
         "reading-glasses",
         "Render Markdown",
         (event: MouseEvent) => {
@@ -737,13 +737,14 @@ function handleBacklinks(
           return instance.setRenderMarkdown(!instance.renderMarkdown);
         }
     );
-    backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
+    const copyResultsBtn = backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
 
     let allSettings = {
       title: plugin.settings.defaultHideResults,
       collapsed: plugin.settings.defaultCollapse,
       context: plugin.settings.defaultShowContext,
       hideTitle: plugin.settings.defaultHideTitle,
+      hideButtons: plugin.settings.defaultHideButtons,
       hideResults: plugin.settings.defaultHideResults,
       renderMarkdown: plugin.settings.defaultRenderMarkdown,
       sort: plugin.settings.defaultSortOrder,
@@ -756,6 +757,12 @@ function handleBacklinks(
         instance.settings[setting] = defaultValue;
       }
     });
+
+    if (instance.settings.hideButtons) {
+      renderMarkdownBtn?.addClass("is-hidden");
+      copyResultsBtn?.addClass("is-hidden");
+    }
+
     backlinksInstance.setExtraContext(instance.settings.context);
     backlinksInstance.sortOrder = instance.settings.sort;
     backlinksInstance.setCollapseAll(instance.settings.collapsed);
