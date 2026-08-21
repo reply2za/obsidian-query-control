@@ -7,6 +7,7 @@ export interface EmbeddedQueryControlSettings {
   defaultShowContext: boolean;
   defaultHideTitle: boolean;
   defaultHideButtons: boolean;
+  defaultHideBacklinkButtons: boolean;
   defaultHideResults: boolean;
   defaultRenderMarkdown: boolean;
   defaultSortOrder: string;
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
   defaultShowContext: false,
   defaultHideTitle: false,
   defaultHideButtons: false,
+  defaultHideBacklinkButtons: false,
   defaultHideResults: false,
   defaultRenderMarkdown: false,
   defaultSortOrder: "alphabetical",
@@ -79,6 +81,13 @@ export class SettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Hide query buttons by default").addToggle(toggle =>
       toggle.setValue(this.plugin.settings.defaultHideButtons).onChange(value => {
         this.plugin.settings.defaultHideButtons = value;
+        this.plugin.saveSettings();
+      })
+    );
+
+    new Setting(containerEl).setName("Hide backlink buttons by default").addToggle(toggle =>
+      toggle.setValue(this.plugin.settings.defaultHideBacklinkButtons).onChange(value => {
+        this.plugin.settings.defaultHideBacklinkButtons = value;
         this.plugin.saveSettings();
       })
     );

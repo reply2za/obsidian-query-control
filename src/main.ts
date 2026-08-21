@@ -744,7 +744,7 @@ function handleBacklinks(
       collapsed: plugin.settings.defaultCollapse,
       context: plugin.settings.defaultShowContext,
       hideTitle: plugin.settings.defaultHideTitle,
-      hideButtons: plugin.settings.defaultHideButtons,
+      hideButtons: plugin.settings.defaultHideBacklinkButtons,
       hideResults: plugin.settings.defaultHideResults,
       renderMarkdown: plugin.settings.defaultRenderMarkdown,
       sort: plugin.settings.defaultSortOrder,
