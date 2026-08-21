@@ -41,8 +41,12 @@
   opacity: 0.88;
 }
 
-.workspace-leaf-content[data-type="markdown"] .internal-query .is-hidden {
-  display: none;
+.workspace-leaf-content[data-type="markdown"] .internal-query .is-hidden,
+.workspace-leaf-content[data-type="backlink"] .is-hidden,
+.backlink-pane .is-hidden,
+.clickable-icon.is-hidden,
+.nav-header.is-hidden {
+  display: none !important;
 }
 
 .search-results-children.is-rendered .search-result-file-match {

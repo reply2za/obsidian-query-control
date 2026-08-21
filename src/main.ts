@@ -336,6 +336,10 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       this.showTitleButtonEl.toggleClass("is-active", value);
                       defaultHeaderEl.toggleClass("is-hidden", value);
                     };
+                    this.setButtonsDisplay = function (value: boolean) {
+                      this.showButtons = value;
+                      headerDom.navHeaderEl.toggleClass("is-hidden", value);
+                    };
                     this.setResultsDisplay = function (value: boolean) {
                       this.showResults = value;
                       this.showResultsButtonEl.toggleClass("is-active", value);
@@ -454,6 +458,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       collapsed: plugin.settings.defaultCollapse,
                       context: plugin.settings.defaultShowContext,
                       hideTitle: plugin.settings.defaultHideTitle,
+                      hideButtons: plugin.settings.defaultHideButtons,
                       hideResults: plugin.settings.defaultHideResults,
                       renderMarkdown: plugin.settings.defaultRenderMarkdown,
                       sort: plugin.settings.defaultSortOrder,
@@ -470,6 +475,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.sortOrder = this.settings.sort;
                     this.setCollapseAll(this.settings.collapsed);
                     this.setTitleDisplay(this.settings.hideTitle);
+                    this.setButtonsDisplay(this.settings.hideButtons);
                     this.setRenderMarkdown(this.settings.renderMarkdown);
                     this.setResultsDisplay(this.settings.hideResults);
                   }
@@ -591,7 +597,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     ".internal-query-header"
                 ) as HTMLElement;
                 let matches = this.query.matchAll(
-                    /^(?<key>collapsed|context|hideTitle|renderMarkdown|hideResults|sort|title):\s*(?<value>.+?)$/gm
+                    /^(?<key>collapsed|context|hideTitle|hideButtons|renderMarkdown|hideResults|sort|title):\s*(?<value>.+?)$/gm
                 );
                 let settings: Record<string, string> = {};
                 for (let match of matches) {
@@ -602,7 +608,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   settings[match.groups.key] = match.groups.value;
                 }
                 this.query = this.query
-                    .replace(/^((collapsed|context|hideTitle|renderMarkdown|hideResults|sort|title):.+?)$/gm, "")
+                    .replace(/^((collapsed|context|hideTitle|hideButtons|renderMarkdown|hideResults|sort|title):.+?)$/gm, "")
                     .trim();
                 defaultHeaderEl.setText(settings.title || this.query);
                 this.dom.settings = settings;
@@ -723,7 +729,7 @@ function handleBacklinks(
     };
 
     // Ensure the button is bound to the updated method
-    instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
+    const renderMarkdownBtn = instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
         "reading-glasses",
         "Render Markdown",
         (event: MouseEvent) => {
@@ -731,13 +737,14 @@ function handleBacklinks(
           return instance.setRenderMarkdown(!instance.renderMarkdown);
         }
     );
-    backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
+    const copyResultsBtn = backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
 
     let allSettings = {
       title: plugin.settings.defaultHideResults,
       collapsed: plugin.settings.defaultCollapse,
       context: plugin.settings.defaultShowContext,
       hideTitle: plugin.settings.defaultHideTitle,
+      hideButtons: plugin.settings.defaultHideBacklinkButtons,
       hideResults: plugin.settings.defaultHideResults,
       renderMarkdown: plugin.settings.defaultRenderMarkdown,
       sort: plugin.settings.defaultSortOrder,
@@ -750,6 +757,12 @@ function handleBacklinks(
         instance.settings[setting] = defaultValue;
       }
     });
+
+    if (instance.settings.hideButtons) {
+      renderMarkdownBtn?.addClass("is-hidden");
+      copyResultsBtn?.addClass("is-hidden");
+    }
+
     backlinksInstance.setExtraContext(instance.settings.context);
     backlinksInstance.sortOrder = instance.settings.sort;
     backlinksInstance.setCollapseAll(instance.settings.collapsed);
