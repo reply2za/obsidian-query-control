@@ -1,4 +1,4 @@
-import {around} from "monkey-around";
+import { around } from "monkey-around";
 import {
   BacklinkDOMClass,
   BacklinksClass,
@@ -15,11 +15,11 @@ import {
   ViewCreator,
   WorkspaceLeaf
 } from "obsidian";
-import {SearchMarkdownRenderer} from "./search-renderer";
-import {DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions} from "./settings";
-import {translate} from "./utils";
-import {createSortPopup} from "./sort";
-import {SortOption} from "./obsidian";
+import { SortOption } from "./obsidian";
+import { SearchMarkdownRenderer } from "./search-renderer";
+import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
+import { createSortPopup } from "./sort";
+import { translate } from "./utils";
 
 // Live Preview creates an embedded query block
 // LP calls addChild with an instance of the EmbeddedSearch class
@@ -548,7 +548,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   _parent?.parent?.infinityScroll.measure(_parent, this);
                 };
                 component.addChild(renderer);
-                renderer.renderer.set(content);
+                renderer.render(content);
               } else {
                 return old.call(this, ...args);
               }

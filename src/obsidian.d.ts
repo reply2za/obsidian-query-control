@@ -22,20 +22,6 @@ declare module "obsidian" {
   interface WorkspaceSplit {
     children: WorkspaceTabs[];
   }
-  interface MarkdownRenderer {
-    renderer: MarkdownPreviewRenderer;
-    rerender(): void;
-  }
-  interface MarkdownPreviewRenderer {
-    previewEl: HTMLElement;
-    onResize(): void;
-    set(content: string): void;
-    unfoldAllHeadings(): void;
-    unfoldAllLists(): void;
-    rerender(): void;
-    text: string;
-  }
-
   class SearchResultDOM {
     startLoader(): void;
     infinityScroll: InfinityScroll;
